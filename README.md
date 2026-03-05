@@ -1,0 +1,103 @@
+# txs
+
+A command-line tool to manage tmux sessions from predefined project directories.
+
+txs lets you define your projects in a simple INI-style configuration file and
+quickly create, switch to, list, or kill tmux sessions. It includes an
+interactive fuzzy-finder picker powered by fzf, with automatic tmux popup
+support.
+
+## Features
+
+- **Interactive session picker** -- fuzzy-find and switch between projects with fzf
+- **Tmux popup support** -- automatically launches in a floating tmux popup when run inside tmux
+- **INI-style configuration** -- define projects with paths, custom session names, and on-create commands
+- **Multi-line on_create** -- run multiple commands when a session is first created
+- **Context-aware** -- works both inside and outside tmux
+- **Shell completions** -- tab completion for Bash and Zsh
+
+## Dependencies
+
+| Dependency | Required |
+|------------|----------|
+| bash       | Yes      |
+| tmux       | Yes      |
+| fzf        | No (needed for interactive mode) |
+
+## Installation
+
+```sh
+make install
+```
+
+This installs txs to `~/.local` by default. You can change the prefix:
+
+```sh
+make install PREFIX=/usr/local
+```
+
+To enable shell completions, add one of these to your shell rc file:
+
+```sh
+# zsh
+source ~/.local/share/txs/completions/txs.zsh
+
+# bash
+source ~/.local/share/txs/completions/txs.bash
+```
+
+## Uninstallation
+
+```sh
+make uninstall
+```
+
+This removes txs but keeps your configuration.
+
+## Configuration
+
+txs reads project definitions from `~/.config/txs/projects.conf`. An example
+config is installed automatically on first install.
+
+```ini
+[DEFAULT]
+
+[my-project]
+path = ~/projects/my-project
+session_name = myproj
+on_create = nvim .
+
+[webapp]
+path = ~/projects/webapp
+on_create = tmux split-window -v -l 20
+    tmux split-window -h -d
+    tmux send-keys -t 3 "npm run dev" Enter
+    tmux select-pane -t 1
+    nvim .
+```
+
+### Configuration keys
+
+| Key            | Required | Description                                                    |
+|----------------|----------|----------------------------------------------------------------|
+| `path`         | Yes      | Directory path for the project (`~` is expanded)               |
+| `session_name` | No       | Custom tmux session name (defaults to section name)            |
+| `on_create`    | No       | Commands to run after session creation (supports multi-line)   |
+
+The `[DEFAULT]` section provides fallback values for all projects. Dots in
+session names are automatically replaced with dashes.
+
+## Usage
+
+```
+txs                  Interactive fuzzy-finder session picker
+txs create <name>    Create or switch to a session for a project
+txs kill <name>      Kill a tmux session
+txs list             List active tmux sessions
+txs projects         List all configured projects and their status
+txs help             Show help
+```
+
+## License
+
+[MIT](LICENSE)
