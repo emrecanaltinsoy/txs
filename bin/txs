@@ -11,6 +11,7 @@
 #   txs help         # Show help
 #   txs version      # Show version
 #
+# shellcheck source-path=SCRIPTDIR
 
 set -euo pipefail
 
@@ -20,9 +21,13 @@ set -euo pipefail
 
 TXS_ROOT="$(dirname "$(readlink -f "$0")")/../lib/txs"
 
+# shellcheck source=../lib/config.sh
 source "${TXS_ROOT}/config.sh"
+# shellcheck source=../lib/tmux.sh
 source "${TXS_ROOT}/tmux.sh"
+# shellcheck source=../lib/commands.sh
 source "${TXS_ROOT}/commands.sh"
+# shellcheck source=../lib/ui.sh
 source "${TXS_ROOT}/ui.sh"
 
 # ---------------------------------------------------------------------------

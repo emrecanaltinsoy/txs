@@ -172,6 +172,7 @@ parse_config
 assert_eq "parses project count" "2" "${#PROJECT_ORDER[@]}"
 assert_eq "parses first project name" "myproject" "${PROJECT_ORDER[0]}"
 assert_eq "parses second project name" "another" "${PROJECT_ORDER[1]}"
+# shellcheck disable=SC2088  # tilde is intentionally literal (expand_path handles expansion)
 assert_eq "parses project path" "~/projects/test" "${PROJECT_PATH[myproject]}"
 assert_eq "parses session_name" "test-session" "${PROJECT_SESSION_NAME[myproject]}"
 assert_eq "parses on_create" "nvim ." "${PROJECT_ON_CREATE[myproject]}"
@@ -185,6 +186,7 @@ another_session=$(get_project_prop "another" "session_name")
 assert_eq "session_name defaults to section name" "another" "$another_session"
 
 # Test expand_path
+# shellcheck disable=SC2088  # tilde is intentionally literal (passed to expand_path)
 expanded=$(expand_path "~/foo/bar")
 assert_eq "expand_path expands tilde" "${HOME}/foo/bar" "$expanded"
 
