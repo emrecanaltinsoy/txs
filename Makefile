@@ -10,7 +10,7 @@ LIB_FILES = lib/config.sh \
             lib/commands.sh \
             lib/ui.sh
 
-.PHONY: install uninstall help
+.PHONY: install uninstall test lint help
 
 install:
 	install -Dm755 bin/txs "$(BINDIR)/txs"
@@ -48,12 +48,20 @@ uninstall:
 	rm -rf "$(PREFIX)/share/txs"
 	@echo "Uninstalled txs (config at $(CONFDIR) was kept)"
 
+test:
+	@bash tests/run_tests.sh
+
+lint:
+	shellcheck -s bash lib/*.sh bin/txs
+
 help:
 	@echo "txs Makefile"
 	@echo ""
 	@echo "Targets:"
 	@echo "  install     Install txs to PREFIX (default: ~/.local)"
 	@echo "  uninstall   Remove txs (keeps config)"
+	@echo "  test        Run test suite"
+	@echo "  lint        Run shellcheck on all scripts"
 	@echo "  help        Show this message"
 	@echo ""
 	@echo "Variables:"

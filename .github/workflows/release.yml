@@ -1,0 +1,314 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Step 1: Determine if a release is needed based on conventional commits
+  # ---------------------------------------------------------------------------
+  check:
+    name: Check for releasable commits
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      next_version: ${{ steps.check.outputs.next_version }}
+      release_notes: ${{ steps.check.outputs.release_notes }}
+      bump: ${{ steps.check.outputs.bump }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine next version from commits
+        id: check
+        run: |
+          # Get the latest tag, or fallback to initial commit
+          LATEST_TAG=$(git tag --sort=-v:refname | head -n1 || true)
+
+          if [[ -z "$LATEST_TAG" ]]; then
+            # No tags yet - use all commits
+            RANGE="HEAD"
+            CURRENT_VERSION="0.0.0"
+          else
+            RANGE="${LATEST_TAG}..HEAD"
+            CURRENT_VERSION="${LATEST_TAG#v}"
+          fi
+
+          echo "Latest tag: ${LATEST_TAG:-none}"
+          echo "Commit range: $RANGE"
+
+          # Collect commits since last tag
+          COMMITS=$(git log "$RANGE" --pretty=format:"%s" 2>/dev/null || true)
+
+          if [[ -z "$COMMITS" ]]; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Determine bump type from conventional commits
+          BUMP=""
+          HAS_BREAKING=false
+          HAS_FEAT=false
+          HAS_FIX=false
+
+          while IFS= read -r msg; do
+            # Check for breaking changes
+            if [[ "$msg" =~ ^[a-z]+(\(.+\))?!: ]] || [[ "$msg" == *"BREAKING CHANGE"* ]]; then
+              HAS_BREAKING=true
+            fi
+            if [[ "$msg" =~ ^feat(\(.+\))?: ]]; then
+              HAS_FEAT=true
+            fi
+            if [[ "$msg" =~ ^fix(\(.+\))?: ]]; then
+              HAS_FIX=true
+            fi
+          done <<< "$COMMITS"
+
+          if $HAS_BREAKING; then
+            BUMP="major"
+          elif $HAS_FEAT; then
+            BUMP="minor"
+          elif $HAS_FIX; then
+            BUMP="patch"
+          else
+            echo "No conventional commits (feat/fix/breaking) found."
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Calculate next version
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+          NEXT_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
+          echo "Bump: $BUMP -> v${NEXT_VERSION}"
+
+          # Build release notes
+          NOTES=""
+          BREAKING_NOTES=""
+          FEAT_NOTES=""
+          FIX_NOTES=""
+          OTHER_NOTES=""
+
+          while IFS= read -r msg; do
+            if [[ "$msg" =~ ^feat(\(.+\))?!?:\ (.+) ]]; then
+              FEAT_NOTES+="- ${BASH_REMATCH[2]}"$'\n'
+            elif [[ "$msg" =~ ^fix(\(.+\))?!?:\ (.+) ]]; then
+              FIX_NOTES+="- ${BASH_REMATCH[2]}"$'\n'
+            elif [[ "$msg" =~ ^[a-z]+(\(.+\))?:\ (.+) ]]; then
+              OTHER_NOTES+="- ${BASH_REMATCH[2]}"$'\n'
+            fi
+            if [[ "$msg" =~ ^[a-z]+(\(.+\))?!: ]] || [[ "$msg" == *"BREAKING CHANGE"* ]]; then
+              BREAKING_NOTES+="- ${msg}"$'\n'
+            fi
+          done <<< "$COMMITS"
+
+          if [[ -n "$BREAKING_NOTES" ]]; then
+            NOTES+="## Breaking Changes"$'\n'"${BREAKING_NOTES}"$'\n'
+          fi
+          if [[ -n "$FEAT_NOTES" ]]; then
+            NOTES+="## Features"$'\n'"${FEAT_NOTES}"$'\n'
+          fi
+          if [[ -n "$FIX_NOTES" ]]; then
+            NOTES+="## Bug Fixes"$'\n'"${FIX_NOTES}"$'\n'
+          fi
+          if [[ -n "$OTHER_NOTES" ]]; then
+            NOTES+="## Other Changes"$'\n'"${OTHER_NOTES}"$'\n'
+          fi
+
+          # Write outputs
+          echo "should_release=true" >> "$GITHUB_OUTPUT"
+          echo "next_version=${NEXT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "bump=${BUMP}" >> "$GITHUB_OUTPUT"
+
+          # Multiline output for release notes
+          {
+            echo "release_notes<<RELEASE_NOTES_EOF"
+            echo "$NOTES"
+            echo "RELEASE_NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # Step 2: Run lint and tests before releasing
+  # ---------------------------------------------------------------------------
+  lint:
+    name: Shellcheck
+    needs: check
+    if: needs.check.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Run shellcheck
+        run: shellcheck -s bash lib/*.sh bin/txs
+
+  test:
+    name: Tests
+    needs: [check, lint]
+    if: needs.check.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tmux
+        run: sudo apt-get update && sudo apt-get install -y tmux
+
+      - name: Run tests
+        run: bash tests/run_tests.sh
+
+  # ---------------------------------------------------------------------------
+  # Step 3: Bump version in source, tag, and push
+  # ---------------------------------------------------------------------------
+  version-bump:
+    name: Bump version
+    needs: [check, test]
+    if: needs.check.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version in lib/config.sh
+        run: |
+          NEXT_VERSION="${{ needs.check.outputs.next_version }}"
+          sed -i "s/TXS_VERSION=\"[^\"]*\"/TXS_VERSION=\"${NEXT_VERSION}\"/" lib/config.sh
+          echo "Updated version to ${NEXT_VERSION}"
+          grep TXS_VERSION lib/config.sh
+
+      - name: Commit and tag
+        id: tag
+        run: |
+          NEXT_VERSION="${{ needs.check.outputs.next_version }}"
+          TAG="v${NEXT_VERSION}"
+
+          git add lib/config.sh
+          git commit -m "chore(release): ${TAG}"
+          git tag -a "$TAG" -m "Release ${TAG}"
+          git push origin main --follow-tags
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # Step 4: Generate changelog
+  # ---------------------------------------------------------------------------
+  changelog:
+    name: Generate changelog
+    needs: [check, version-bump]
+    if: needs.check.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version-bump.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Generate CHANGELOG.md
+        run: |
+          TAG="${{ needs.version-bump.outputs.tag }}"
+          DATE=$(date +%Y-%m-%d)
+
+          # Build full changelog from all tags
+          CHANGELOG="# Changelog\n\nAll notable changes to this project will be documented in this file.\n"
+
+          for tag in $(git tag --sort=-v:refname); do
+            TAG_DATE=$(git log -1 --format=%ai "$tag" | cut -d' ' -f1)
+            PREV_TAG=$(git tag --sort=-v:refname | grep -A1 "^${tag}$" | tail -1)
+
+            if [[ "$PREV_TAG" == "$tag" ]]; then
+              RANGE="$tag"
+            else
+              RANGE="${PREV_TAG}..${tag}"
+            fi
+
+            CHANGELOG+="\n## ${tag} (${TAG_DATE})\n\n"
+
+            # Group commits
+            FEATS=$(git log "$RANGE" --pretty=format:"%s" 2>/dev/null | grep -E "^feat" | sed 's/^feat[^:]*: /- /' || true)
+            FIXES=$(git log "$RANGE" --pretty=format:"%s" 2>/dev/null | grep -E "^fix" | sed 's/^fix[^:]*: /- /' || true)
+            OTHERS=$(git log "$RANGE" --pretty=format:"%s" 2>/dev/null | grep -Ev "^(feat|fix|chore\(release\))" | sed 's/^[a-z]*[^:]*: /- /' || true)
+
+            [[ -n "$FEATS" ]] && CHANGELOG+="### Features\n${FEATS}\n\n"
+            [[ -n "$FIXES" ]] && CHANGELOG+="### Bug Fixes\n${FIXES}\n\n"
+            [[ -n "$OTHERS" ]] && CHANGELOG+="### Other\n${OTHERS}\n\n"
+          done
+
+          echo -e "$CHANGELOG" > CHANGELOG.md
+
+      - name: Commit changelog
+        run: |
+          if git diff --quiet CHANGELOG.md 2>/dev/null; then
+            echo "No changelog changes to commit"
+          else
+            git add CHANGELOG.md
+            git commit -m "docs: update CHANGELOG.md for ${{ needs.version-bump.outputs.tag }}"
+            git push origin main
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Step 5: Package tarball and create GitHub Release
+  # ---------------------------------------------------------------------------
+  release:
+    name: GitHub Release
+    needs: [check, version-bump, changelog]
+    if: needs.check.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version-bump.outputs.tag }}
+
+      - name: Create tarball
+        run: |
+          TAG="${{ needs.version-bump.outputs.tag }}"
+          VERSION="${{ needs.check.outputs.next_version }}"
+          ARCHIVE="txs-${VERSION}.tar.gz"
+
+          # Create a clean archive with the release contents
+          mkdir -p "txs-${VERSION}"
+          cp -r bin lib completions Makefile LICENSE README.md projects.conf.example "txs-${VERSION}/"
+          tar czf "$ARCHIVE" "txs-${VERSION}"
+          rm -rf "txs-${VERSION}"
+
+          echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
+          echo "Created ${ARCHIVE}"
+          ls -lh "$ARCHIVE"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ needs.version-bump.outputs.tag }}"
+          VERSION="${{ needs.check.outputs.next_version }}"
+          NOTES="${{ needs.check.outputs.release_notes }}"
+
+          gh release create "$TAG" \
+            --title "txs ${TAG}" \
+            --notes "${NOTES}" \
+            "${ARCHIVE}"
+
+          echo "Release ${TAG} created with asset ${ARCHIVE}"
