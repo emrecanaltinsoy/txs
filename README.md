@@ -98,6 +98,31 @@ txs projects         List all configured projects and their status
 txs help             Show help
 ```
 
+## Keybindings
+
+I mainly access txs through keybindings in tmux and Neovim rather than running
+it directly from the shell.
+
+### tmux
+
+```sh
+bind-key -r a run-shell "txs"
+```
+
+### Neovim
+
+```lua
+vim.keymap.set({ "n" }, "<leader>tt", "<cmd>silent !txs<cr>", { desc = "Start txs" })
+```
+
+## Pairing with tmuxifier
+
+txs pairs well with [tmuxifier](https://github.com/jimeh/tmuxifier). While
+tmuxifier manages complex window and pane layouts through dedicated layout
+files, txs can complement it by using `on_create` to define how sessions should
+start, whether that means loading a tmuxifier layout, opening an editor, or
+spinning up dev servers.
+
 ## License
 
 [MIT](LICENSE)
