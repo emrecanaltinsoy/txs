@@ -1,0 +1,41 @@
+# txs project configuration
+#
+# Format: INI-style sections where each [section] defines a project.
+#
+# Available keys:
+#   path         (required) - Directory path for the project (~ is expanded)
+#   session_name (optional) - Custom tmux session name (default: section name)
+#   on_create    (optional) - Command to run in the session after creation
+#
+# Multi-line on_create: indent continuation lines with whitespace.
+# Each line is sent as a separate tmux send-keys command.
+#
+#   on_create = tmux split-window -v -l 20
+#       tmux select-pane -t 1
+#       nvim .
+#
+# The [DEFAULT] section provides fallback values for all projects.
+# Dots in session names are replaced with dashes automatically.
+
+[DEFAULT]
+
+# Uncomment and customize the examples below:
+
+# [my-project]
+# path = ~/projects/my-project
+# session_name = myproj
+# on_create = nvim .
+
+# [dotfiles]
+# path = ~/dotfiles
+# on_create = tmux split-window -v -l 20
+#     tmux select-pane -t 1
+#     nvim .
+
+# [webapp]
+# path = ~/projects/webapp
+# on_create = tmux split-window -v -l 20
+#     tmux split-window -h -d
+#     tmux send-keys -t 3 "npm run dev" Enter
+#     tmux select-pane -t 1
+#     nvim .

@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+#
+# txs - Manage tmux sessions from predefined project directories
+#
+# Usage:
+#   txs              # Interactive fzf picker
+#   txs list         # List active tmux sessions
+#   txs projects     # List configured projects
+#   txs create NAME  # Create/attach session for a project
+#   txs kill NAME    # Kill a tmux session
+#   txs help         # Show help
+#
+
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Resolve and source library files
+# ---------------------------------------------------------------------------
+
+TXS_ROOT="$(dirname "$(readlink -f "$0")")/../lib/txs"
+
+source "${TXS_ROOT}/config.sh"
+source "${TXS_ROOT}/tmux.sh"
+source "${TXS_ROOT}/commands.sh"
+source "${TXS_ROOT}/ui.sh"
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+main() {
+  local cmd="${1:-}"
+
+  case "$cmd" in
+  list)
+    cmd_list
+    ;;
+  projects)
+    cmd_projects
+    ;;
+  create)
+    if [[ -z "${2:-}" ]]; then
+      echo -e "${RED}Error:${RESET} Missing project name."
+      echo "Usage: txs create <project-name>"
+      return 1
+    fi
+    cmd_create "$2"
+    ;;
+  kill)
+    if [[ -z "${2:-}" ]]; then
+      echo -e "${RED}Error:${RESET} Missing session name."
+      echo "Usage: txs kill <session-name>"
+      return 1
+    fi
+    cmd_kill "$2"
+    ;;
+  help | --help | -h)
+    cmd_help
+    ;;
+  --popup)
+    # Internal: called from within tmux display-popup
+    cmd_interactive
+    ;;
+  "")
+    cmd_interactive
+    ;;
+  *)
+    echo -e "${RED}Error:${RESET} Unknown command '${cmd}'."
+    echo ""
+    cmd_help
+    return 1
+    ;;
+  esac
+}
+
+main "$@"
