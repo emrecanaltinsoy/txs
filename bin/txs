@@ -9,6 +9,7 @@
 #   txs create NAME  # Create/attach session for a project
 #   txs kill NAME    # Kill a tmux session
 #   txs help         # Show help
+#   txs version      # Show version
 #
 
 set -euo pipefail
@@ -57,9 +58,8 @@ main() {
   help | --help | -h)
     cmd_help
     ;;
-  --popup)
-    # Internal: called from within tmux display-popup
-    cmd_interactive
+  version | --version | -v)
+    echo "txs ${TXS_VERSION}"
     ;;
   "")
     cmd_interactive

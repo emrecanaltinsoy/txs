@@ -19,6 +19,7 @@ _txs() {
 		'create:Create/attach session for a project'
 		'kill:Kill a tmux session'
 		'help:Show help message'
+		'version:Show version'
 	)
 
 	if (( CURRENT == 2 )); then
