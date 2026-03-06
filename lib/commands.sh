@@ -1,107 +1,107 @@
 #!/usr/bin/env bash
 cmd_list()
            {
- local sessions
- sessions=$(get_active_sessions)
- if [[ -z $sessions   ]];then
-  echo -e "${DIM}No active tmux sessions.$RESET"
-  return 0
-fi
- fetch_session_windows
- echo -e "${BOLD}Active tmux sessions:$RESET"
- echo ""
- while IFS= read -r session;do
-  local windows="${SESSION_WINDOWS[$session]:-}"
-  echo -e "  $GREEN$session$RESET  $DIM[$windows]$RESET"
-done  <<< "$sessions"
+    local sessions
+    sessions=$(get_active_sessions)
+    if [[ -z $sessions ]]; then
+        echo -e "${DIM}No active tmux sessions.$RESET"
+        return 0
+    fi
+    fetch_session_windows
+    echo -e "${BOLD}Active tmux sessions:$RESET"
+    echo ""
+    while IFS= read -r session; do
+        local windows="${SESSION_WINDOWS[$session]:-}"
+        echo -e "  $GREEN$session$RESET  ${DIM}[$windows]$RESET"
+    done <<< "$sessions"
 }
 cmd_projects()
                {
- parse_config||  return 1
- if [[ ${#PROJECT_ORDER[@]} -eq 0 ]];then
-  echo -e "${DIM}No projects configured in $CONFIG_FILE$RESET"
-  return 0
-fi
- local active_sessions
- active_sessions=$(get_active_sessions)
- echo -e "${BOLD}Configured projects:$RESET"
- echo ""
- for project in "${PROJECT_ORDER[@]}";do
-  local path session_name on_create status
-  path=$(get_project_prop "$project" "path")
-  session_name=$(get_project_prop "$project" "session_name")
-  on_create=$(get_project_prop "$project" "on_create")
-  if echo "$active_sessions"|  grep -qx "$session_name";then
-   status="${GREEN}active$RESET"
-else
-   status="${DIM}inactive$RESET"
-fi
-  echo -e "  $CYAN$project$RESET  [$status]"
-  echo -e "    path:    $path"
-  [[ $session_name != "$project"   ]]&&  echo -e "    session: $session_name"
-  if [[ -n $on_create   ]];then
-   local first=true
-   while IFS= read -r cmd;do
-    [[ -z $cmd   ]]&&  continue
-    if $first;then
-     echo -e "    run:     $cmd"
-     first=false
-else
-     echo -e "             $cmd"
-fi
-done    <<< "$on_create"
-fi
-  echo ""
-done
+    parse_config || return 1
+    if [[ ${#PROJECT_ORDER[@]} -eq 0 ]]; then
+        echo -e "${DIM}No projects configured in $CONFIG_FILE$RESET"
+        return 0
+    fi
+    local active_sessions
+    active_sessions=$(get_active_sessions)
+    echo -e "${BOLD}Configured projects:$RESET"
+    echo ""
+    for project in "${PROJECT_ORDER[@]}"; do
+        local path session_name on_create status
+        path=$(get_project_prop "$project" "path")
+        session_name=$(get_project_prop "$project" "session_name")
+        on_create=$(get_project_prop "$project" "on_create")
+        if echo "$active_sessions" | grep -qx "$session_name"; then
+            status="${GREEN}active$RESET"
+        else
+            status="${DIM}inactive$RESET"
+        fi
+        echo -e "  $CYAN$project$RESET  [$status]"
+        echo -e "    path:    $path"
+        [[ $session_name != "$project" ]] && echo -e "    session: $session_name"
+        if [[ -n $on_create ]]; then
+            local first=true
+            while IFS= read -r cmd; do
+                [[ -z $cmd ]] && continue
+                if $first; then
+                    echo -e "    run:     $cmd"
+                    first=false
+                else
+                    echo -e "             $cmd"
+                fi
+            done <<< "$on_create"
+        fi
+        echo ""
+    done
 }
 cmd_create()
              {
- local project="$1"
- parse_config||  return 1
- if [[ -z ${PROJECT_PATH[$project]:-}   ]];then
-  error "Project '$project' not found in config."
-  echo "Available projects:"
-  for p in "${PROJECT_ORDER[@]}";do
-   echo "  - $p"
-done
-  return 1
-fi
- local path session_name on_create
- path=$(expand_path "$(get_project_prop "$project" "path")")
- session_name=$(get_project_prop "$project" "session_name")
- on_create=$(get_project_prop "$project" "on_create")
- if [[ ! -d $path   ]];then
-  error "Directory does not exist: $path"
-  return 1
-fi
- if tmux_session_exists "$session_name";then
-  echo -e "${DIM}Session '$session_name' already exists. Switching...$RESET"
-  tmux_attach_or_switch "$session_name"
-  return 0
-fi
- echo -e "Creating session $GREEN$session_name$RESET at $path..."
- tmux new-session -d -s "$session_name" -c "$path"
- if [[ -n $on_create   ]];then
-  while IFS= read -r cmd;do
-   [[ -z $cmd   ]]&&  continue
-   tmux send-keys -t "=$session_name:" "$cmd" Enter
-done   <<< "$on_create"
-fi
- tmux_attach_or_switch "$session_name"
+    local project="$1"
+    parse_config || return 1
+    if [[ -z ${PROJECT_PATH[$project]:-} ]]; then
+        error "Project '$project' not found in config."
+        echo "Available projects:"
+        for p in "${PROJECT_ORDER[@]}"; do
+            echo "  - $p"
+        done
+        return 1
+    fi
+    local path session_name on_create
+    path=$(expand_path "$(get_project_prop "$project" "path")")
+    session_name=$(get_project_prop "$project" "session_name")
+    on_create=$(get_project_prop "$project" "on_create")
+    if [[ ! -d $path ]]; then
+        error "Directory does not exist: $path"
+        return 1
+    fi
+    if tmux_session_exists "$session_name"; then
+        echo -e "${DIM}Session '$session_name' already exists. Switching...$RESET"
+        tmux_attach_or_switch "$session_name"
+        return 0
+    fi
+    echo -e "Creating session $GREEN$session_name$RESET at $path..."
+    tmux new-session -d -s "$session_name" -c "$path"
+    if [[ -n $on_create ]]; then
+        while IFS= read -r cmd; do
+            [[ -z $cmd ]] && continue
+            tmux send-keys -t "=$session_name:" "$cmd" Enter
+        done <<< "$on_create"
+    fi
+    tmux_attach_or_switch "$session_name"
 }
 cmd_kill()
            {
- local target="$1"
- if ! tmux_session_exists "$target";then
-  error "Session '$target' does not exist."
-  return 1
-fi
- tmux kill-session -t "=$target"
- echo -e "Killed session $GREEN$target$RESET."
+    local target="$1"
+    if ! tmux_session_exists "$target"; then
+        error "Session '$target' does not exist."
+        return 1
+    fi
+    tmux kill-session -t "=$target"
+    echo -e "Killed session $GREEN$target$RESET."
 }
 cmd_help()
            {
- cat << EOF
+    cat << EOF
 txs - Manage tmux sessions from predefined project directories
 
 USAGE:

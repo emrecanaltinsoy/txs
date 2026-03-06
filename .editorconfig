@@ -13,7 +13,7 @@ space_redirects    = true
 keep_padding       = true
 # --func-next-line
 function_next_line = true
-minify             = true
+minify             = false
 
 # Ignore the entire "third_party" directory when calling shfmt on directories,
 # such as "shfmt -l -w .". When formatting files directly,

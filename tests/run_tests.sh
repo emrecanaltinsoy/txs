@@ -8,51 +8,51 @@ TOTAL=0
 source "$PROJECT_ROOT/lib/log.sh"
 assert_eq()
             {
- local description="$1"
- local expected="$2"
- local actual="$3"
- TOTAL=$((TOTAL+1))
- if [[ $expected == "$actual"   ]];then
-  PASS=$((PASS+1))
-  echo -e "  ${GREEN}PASS$RESET $description"
-else
-  FAIL=$((FAIL+1))
-  echo -e "  ${RED}FAIL$RESET $description"
-  echo -e "       expected: $expected"
-  echo -e "       actual:   $actual"
-fi
+    local description="$1"
+    local expected="$2"
+    local actual="$3"
+    TOTAL=$((TOTAL + 1))
+    if [[ $expected == "$actual" ]]; then
+        PASS=$((PASS + 1))
+        echo -e "  ${GREEN}PASS$RESET $description"
+    else
+        FAIL=$((FAIL + 1))
+        echo -e "  ${RED}FAIL$RESET $description"
+        echo -e "       expected: $expected"
+        echo -e "       actual:   $actual"
+    fi
 }
 assert_contains()
                   {
- local description="$1"
- local haystack="$2"
- local needle="$3"
- TOTAL=$((TOTAL+1))
- if [[ $haystack == *"$needle"*   ]];then
-  PASS=$((PASS+1))
-  echo -e "  ${GREEN}PASS$RESET $description"
-else
-  FAIL=$((FAIL+1))
-  echo -e "  ${RED}FAIL$RESET $description"
-  echo -e "       expected to contain: $needle"
-  echo -e "       got: $haystack"
-fi
+    local description="$1"
+    local haystack="$2"
+    local needle="$3"
+    TOTAL=$((TOTAL + 1))
+    if [[ $haystack == *"$needle"* ]]; then
+        PASS=$((PASS + 1))
+        echo -e "  ${GREEN}PASS$RESET $description"
+    else
+        FAIL=$((FAIL + 1))
+        echo -e "  ${RED}FAIL$RESET $description"
+        echo -e "       expected to contain: $needle"
+        echo -e "       got: $haystack"
+    fi
 }
 assert_exit_code()
                    {
- local description="$1"
- local expected="$2"
- local actual="$3"
- TOTAL=$((TOTAL+1))
- if [[ $expected == "$actual"   ]];then
-  PASS=$((PASS+1))
-  echo -e "  ${GREEN}PASS$RESET $description"
-else
-  FAIL=$((FAIL+1))
-  echo -e "  ${RED}FAIL$RESET $description"
-  echo -e "       expected exit code: $expected"
-  echo -e "       actual exit code:   $actual"
-fi
+    local description="$1"
+    local expected="$2"
+    local actual="$3"
+    TOTAL=$((TOTAL + 1))
+    if [[ $expected == "$actual" ]]; then
+        PASS=$((PASS + 1))
+        echo -e "  ${GREEN}PASS$RESET $description"
+    else
+        FAIL=$((FAIL + 1))
+        echo -e "  ${RED}FAIL$RESET $description"
+        echo -e "       expected exit code: $expected"
+        echo -e "       actual exit code:   $actual"
+    fi
 }
 TMPDIR_INSTALL=$(mktemp -d)
 cleanup()
@@ -63,32 +63,32 @@ trap cleanup EXIT
 mkdir -p "$TMPDIR_INSTALL/bin"   "$TMPDIR_INSTALL/lib/txs"
 cp "$PROJECT_ROOT/bin/txs"   "$TMPDIR_INSTALL/bin/txs"
 chmod +x "$TMPDIR_INSTALL/bin/txs"
-for f in "$PROJECT_ROOT"/lib/*.sh;do
- cp "$f" "$TMPDIR_INSTALL/lib/txs/"
+for f in "$PROJECT_ROOT"/lib/*.sh; do
+    cp "$f" "$TMPDIR_INSTALL/lib/txs/"
 done
 TXS="$TMPDIR_INSTALL/bin/txs"
 echo -e "${BOLD}test: version$RESET"
 source "$PROJECT_ROOT/lib/config.sh"
-version_output=$("$TXS" version 2>&1)||  true
+version_output=$("$TXS" version 2>&1) || true
 assert_contains "txs version prints version string" "$version_output" "$TXS_VERSION"
-assert_contains "txs --version prints version string" "$("$TXS" --version 2>&1||  true)" "$TXS_VERSION"
-assert_contains "txs -v prints version string" "$("$TXS" -v 2>&1||  true)" "$TXS_VERSION"
+assert_contains "txs --version prints version string" "$("$TXS" --version 2>&1 || true)" "$TXS_VERSION"
+assert_contains "txs -v prints version string" "$("$TXS" -v 2>&1 || true)" "$TXS_VERSION"
 echo -e "${BOLD}test: help$RESET"
-help_output=$("$TXS" help 2>&1)||  true
+help_output=$("$TXS" help 2>&1) || true
 assert_contains "help mentions USAGE" "$help_output" "USAGE"
 assert_contains "help mentions list command" "$help_output" "txs list"
 assert_contains "help mentions create command" "$help_output" "txs create"
 assert_contains "help mentions kill command" "$help_output" "txs kill"
 echo -e "${BOLD}test: unknown command$RESET"
-unknown_output=$("$TXS" nonexistent 2>&1)&&  ec=0||  ec=$?
+unknown_output=$("$TXS" nonexistent 2>&1) && ec=0 || ec=$?
 assert_exit_code "unknown command exits non-zero" "1" "$ec"
 assert_contains "unknown command shows error" "$unknown_output" "Unknown command"
 echo -e "${BOLD}test: create missing argument$RESET"
-create_output=$("$TXS" create 2>&1)&&  ec=0||  ec=$?
+create_output=$("$TXS" create 2>&1) && ec=0 || ec=$?
 assert_exit_code "create without arg exits non-zero" "1" "$ec"
 assert_contains "create without arg shows error" "$create_output" "Missing project name"
 echo -e "${BOLD}test: kill missing argument$RESET"
-kill_output=$("$TXS" kill 2>&1)&&  ec=0||  ec=$?
+kill_output=$("$TXS" kill 2>&1) && ec=0 || ec=$?
 assert_exit_code "kill without arg exits non-zero" "1" "$ec"
 assert_contains "kill without arg shows error" "$kill_output" "Missing session name"
 echo -e "${BOLD}test: config parser$RESET"
@@ -144,6 +144,6 @@ assert_contains "continuation line appended" "$multi_on_create" "nvim ."
 assert_contains "first line preserved" "$multi_on_create" "tmux split-window -v"
 echo ""
 echo -e "${BOLD}Results: $PASS/$TOTAL passed, $FAIL failed$RESET"
-if [[ $FAIL -gt 0 ]];then
- exit 1
+if [[ $FAIL -gt 0 ]]; then
+    exit 1
 fi
