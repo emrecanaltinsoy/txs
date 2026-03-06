@@ -99,6 +99,79 @@ cmd_kill()
     tmux kill-session -t "=$target"
     echo -e "Killed session $GREEN$target$RESET."
 }
+cmd_add()
+          {
+    local raw_path="${1:-.}"
+    local resolved
+    resolved=$(realpath "$raw_path" 2> /dev/null) || {
+        error "Could not resolve path: $raw_path"
+        return 1
+    }
+    if [[ ! -d $resolved ]]; then
+        error "Directory does not exist: $resolved"
+        return 1
+    fi
+    local name
+    name=$(basename "$resolved")
+    # Sanitise: only keep characters valid in INI section names
+    name="${name//[^a-zA-Z0-9_.-]/-}"
+    if [[ -z $name ]]; then
+        error "Could not derive a project name from path."
+        return 1
+    fi
+    # Check for duplicate section
+    if [[ -f $CONFIG_FILE ]] && grep -q "^\[$name\]$" "$CONFIG_FILE"; then
+        error "Project '$name' already exists in $CONFIG_FILE"
+        return 1
+    fi
+    # Ensure config dir and file exist
+    mkdir -p "$(dirname "$CONFIG_FILE")"
+    # Append the new project
+    {
+        echo ""
+        echo "[$name]"
+        echo "path = $resolved"
+    } >> "$CONFIG_FILE"
+    info "Added project ${GREEN}$name${RESET} ($resolved)"
+}
+cmd_remove()
+             {
+    local project="$1"
+    if [[ ! -f $CONFIG_FILE ]]; then
+        error "Config file not found: $CONFIG_FILE"
+        return 1
+    fi
+    # Check if section exists
+    if ! grep -q "^\[$project\]$" "$CONFIG_FILE"; then
+        error "Project '$project' not found in $CONFIG_FILE"
+        return 1
+    fi
+    # Remove the section header and all following key=value / continuation lines
+    # until the next section header or end of file
+    local tmpfile
+    tmpfile=$(mktemp)
+    awk -v section="$project" '
+        BEGIN { skip = 0 }
+        /^\[/ {
+            if ($0 == "[" section "]") { skip = 1; next }
+            else { skip = 0 }
+        }
+        !skip { print }
+    ' "$CONFIG_FILE" > "$tmpfile"
+    # Remove trailing blank lines left behind
+    sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$tmpfile"
+    mv "$tmpfile" "$CONFIG_FILE"
+    info "Removed project ${GREEN}$project${RESET}"
+}
+cmd_config()
+             {
+    local editor="${EDITOR:-vi}"
+    if [[ ! -f $CONFIG_FILE ]]; then
+        mkdir -p "$(dirname "$CONFIG_FILE")"
+        touch "$CONFIG_FILE"
+    fi
+    exec "$editor" "$CONFIG_FILE"
+}
 cmd_help()
            {
     cat << EOF
@@ -109,6 +182,9 @@ USAGE:
     txs list             List active tmux sessions
     txs projects         List configured projects
     txs create <name>    Create/attach session for a project
+    txs add [path]       Add a directory to the config (default: .)
+    txs remove <name>    Remove a project from the config
+    txs config           Open the config file in \$EDITOR
     txs kill <name>      Kill a tmux session
     txs help             Show this help message
     txs version          Show version

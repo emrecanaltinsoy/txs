@@ -114,6 +114,9 @@ session names are automatically replaced with dashes.
 ```
 txs                  Interactive fuzzy-finder session picker
 txs create <name>    Create or switch to a session for a project
+txs add [path]       Add a directory to the config (default: current dir)
+txs remove <name>    Remove a project from the config
+txs config           Open the config file in $EDITOR
 txs kill <name>      Kill a tmux session
 txs list             List active tmux sessions
 txs projects         List all configured projects and their status

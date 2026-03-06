@@ -17,6 +17,9 @@ _txs() {
 		'list:List active tmux sessions'
 		'projects:List configured projects'
 		'create:Create/attach session for a project'
+		'add:Add a directory to the config'
+		'remove:Remove a project from the config'
+		'config:Open config file in $EDITOR'
 		'kill:Kill a tmux session'
 		'help:Show help message'
 		'version:Show version'
@@ -29,6 +32,14 @@ _txs() {
 
 	case "${words[2]}" in
 	create)
+		local -a projects
+		projects=("${(@f)$(_txs_projects)}")
+		[[ ${#projects[@]} -gt 0 ]] && _describe 'project' projects
+		;;
+	add)
+		_path_files -/
+		;;
+	remove)
 		local -a projects
 		projects=("${(@f)$(_txs_projects)}")
 		[[ ${#projects[@]} -gt 0 ]] && _describe 'project' projects

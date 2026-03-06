@@ -7,6 +7,9 @@
 #   txs list         # List active tmux sessions
 #   txs projects     # List configured projects
 #   txs create NAME  # Create/attach session for a project
+#   txs add [PATH]   # Add a directory to the config
+#   txs remove NAME  # Remove a project from the config
+#   txs config       # Open config in $EDITOR
 #   txs kill NAME    # Kill a tmux session
 #   txs help         # Show help
 #   txs version      # Show version
@@ -53,6 +56,20 @@ main() {
 			return 1
 		fi
 		cmd_create "$2"
+		;;
+	add)
+		cmd_add "${2:-.}"
+		;;
+	remove)
+		if [[ -z "${2:-}" ]]; then
+			error "Missing project name."
+			echo "Usage: txs remove <project-name>"
+			return 1
+		fi
+		cmd_remove "$2"
+		;;
+	config)
+		cmd_config
 		;;
 	kill)
 		if [[ -z "${2:-}" ]]; then
