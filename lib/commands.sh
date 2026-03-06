@@ -160,7 +160,7 @@ cmd_remove()
     ' "$CONFIG_FILE" > "$tmpfile"
     # Remove trailing blank lines left behind
     sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$tmpfile"
-    mv "$tmpfile" "$CONFIG_FILE"
+    cp "$tmpfile" "$CONFIG_FILE"
     info "Removed project ${GREEN}$project${RESET}"
 }
 cmd_config()
