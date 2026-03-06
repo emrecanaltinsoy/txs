@@ -129,6 +129,12 @@ txs projects         List all configured projects and their status
 txs help             Show help
 ```
 
+### Environment variables
+
+| Variable    | Description                                                                 |
+|-------------|-----------------------------------------------------------------------------|
+| `TXS_POPUP` | When set to `1`, txs will not launch in a tmux popup even if run inside tmux. This is useful when you want to control the display behavior yourself, for example when launching txs inside an editor's floating terminal. |
+
 ## Keybindings
 
 I mainly access txs through keybindings in tmux and Neovim rather than running
@@ -142,8 +148,15 @@ bind-key -r a run-shell "txs"
 
 ### Neovim
 
+Instead of running the script directly, I use the `Snacks.terminal` API to launch it in a floating terminal. This ensures a consistent experience whether I'm inside tmux or not, and keeps me in the editor.
+
 ```lua
-vim.keymap.set({ "n" }, "<leader>tt", "<cmd>silent !txs<cr>", { desc = "Start txs" })
+vim.keymap.set(
+  { "n" },
+  "<leader>tt",
+  "<cmd>lua Snacks.terminal('TXS_POPUP=1 txs', { win = {position = 'float'}})<cr>",
+  { desc = "Start txs" }
+)
 ```
 
 ## Pairing with tmuxifier
