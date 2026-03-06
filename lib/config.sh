@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034  # used by sourcing scripts
-TXS_VERSION="0.1.0"
+TXS_VERSION="0.2.0"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/txs"
 CONFIG_FILE="$CONFIG_DIR/projects.conf"
 declare -A PROJECT_PATH
