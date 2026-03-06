@@ -5,7 +5,8 @@ BINDIR    = $(PREFIX)/bin
 LIBDIR    = $(PREFIX)/lib/txs
 SHAREDIR  = $(PREFIX)/share/txs/completions
 
-LIB_FILES = lib/config.sh \
+LIB_FILES = lib/log.sh \
+            lib/config.sh \
             lib/tmux.sh \
             lib/commands.sh \
             lib/ui.sh
@@ -52,7 +53,7 @@ test:
 	@bash tests/run_tests.sh
 
 lint:
-	shellcheck -s bash lib/*.sh bin/txs
+	shellcheck -s bash lib/*.sh bin/txs completions/txs.bash install.sh
 
 help:
 	@echo "txs Makefile"

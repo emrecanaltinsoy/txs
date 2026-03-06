@@ -11,16 +11,9 @@ PASS=0
 FAIL=0
 TOTAL=0
 
-# Colors
-if [[ -t 1 ]]; then
-	GREEN='\033[0;32m'
-	RED='\033[0;31m'
-	BOLD='\033[1m'
-	DIM='\033[2m'
-	RESET='\033[0m'
-else
-	GREEN='' RED='' BOLD='' DIM='' RESET=''
-fi
+# Source shared colors
+# shellcheck source=../lib/log.sh
+source "${PROJECT_ROOT}/lib/log.sh"
 
 assert_eq() {
 	local description="$1"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# txs/config.sh - Configuration, colors, and INI config parser
+# txs/config.sh - Configuration and INI config parser
 
 # ---------------------------------------------------------------------------
 # Version
@@ -16,23 +16,6 @@ CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/txs"
 CONFIG_FILE="${CONFIG_DIR}/projects.conf"
 
 # ---------------------------------------------------------------------------
-# Colors (only when outputting to a terminal)
-# ---------------------------------------------------------------------------
-
-# shellcheck disable=SC2034  # used by sourcing scripts
-if [[ -t 1 ]]; then
-	BOLD='\033[1m'
-	DIM='\033[2m'
-	GREEN='\033[0;32m'
-	YELLOW='\033[0;33m'
-	CYAN='\033[0;36m'
-	RED='\033[0;31m'
-	RESET='\033[0m'
-else
-	BOLD='' DIM='' GREEN='' YELLOW='' CYAN='' RED='' RESET=''
-fi
-
-# ---------------------------------------------------------------------------
 # INI Config Parser
 # ---------------------------------------------------------------------------
 
@@ -47,7 +30,7 @@ declare -A DEFAULTS
 
 parse_config() {
 	if [[ ! -f "$CONFIG_FILE" ]]; then
-		echo -e "${RED}Error:${RESET} Config file not found: ${CONFIG_FILE}"
+		error "Config file not found: ${CONFIG_FILE}"
 		echo "Create it with example projects, or run: txs help"
 		return 1
 	fi
@@ -80,14 +63,14 @@ parse_config() {
 				case "$last_key" in
 				on_create) DEFAULTS[$last_key]+=$'\n'"$cont_value" ;;
 				*)
-					echo -e "${YELLOW}Warning:${RESET} Continuation line ignored for '${last_key}' at line ${line_num}" >&2
+					warn "Continuation line ignored for '${last_key}' at line ${line_num}"
 					;;
 				esac
 			else
 				case "$last_key" in
 				on_create) PROJECT_ON_CREATE[$current_section]+=$'\n'"$cont_value" ;;
 				*)
-					echo -e "${YELLOW}Warning:${RESET} Continuation line ignored for '${last_key}' at line ${line_num}" >&2
+					warn "Continuation line ignored for '${last_key}' at line ${line_num}"
 					;;
 				esac
 			fi
@@ -132,12 +115,12 @@ parse_config() {
 				case "$key" in
 				on_create | session_name) DEFAULTS[$key]="$value" ;;
 				path)
-					echo -e "${YELLOW}Warning:${RESET} 'path' in [DEFAULT] is not supported (line ${line_num})" >&2
+					warn "'path' in [DEFAULT] is not supported (line ${line_num})"
 					last_key=""
 					;;
 				*)
 					last_key=""
-					echo -e "${YELLOW}Warning:${RESET} Unknown key '${key}' at line ${line_num}" >&2
+					warn "Unknown key '${key}' at line ${line_num}"
 					;;
 				esac
 			elif [[ -n "$current_section" ]]; then
@@ -147,7 +130,7 @@ parse_config() {
 				on_create) PROJECT_ON_CREATE[$current_section]="$value" ;;
 				*)
 					last_key=""
-					echo -e "${YELLOW}Warning:${RESET} Unknown key '${key}' at line ${line_num}" >&2
+					warn "Unknown key '${key}' at line ${line_num}"
 					;;
 				esac
 			fi
@@ -155,7 +138,7 @@ parse_config() {
 		fi
 
 		last_key=""
-		echo -e "${YELLOW}Warning:${RESET} Could not parse line ${line_num}: ${line}" >&2
+		warn "Could not parse line ${line_num}: ${line}"
 	done <"$CONFIG_FILE"
 }
 
