@@ -53,7 +53,7 @@ test:
 	@bash tests/run_tests.sh
 
 lint:
-	shellcheck -s bash lib/*.sh bin/txs completions/txs.bash install.sh
+	shellcheck -s bash lib/*.sh bin/txs completions/txs.bash install.sh tests/run_tests.sh
 
 help:
 	@echo "txs Makefile"

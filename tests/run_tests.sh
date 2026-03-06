@@ -115,6 +115,7 @@ parse_config
 assert_eq "parses project count" "2" "${#PROJECT_ORDER[@]}"
 assert_eq "parses first project name" "myproject" "${PROJECT_ORDER[0]}"
 assert_eq "parses second project name" "another" "${PROJECT_ORDER[1]}"
+#shellcheck disable=SC2088
 assert_eq "parses project path" "~/projects/test" "${PROJECT_PATH[myproject]}"
 assert_eq "parses session_name" "test-session" "${PROJECT_SESSION_NAME[myproject]}"
 assert_eq "parses on_create" "nvim ." "${PROJECT_ON_CREATE[myproject]}"
@@ -123,6 +124,7 @@ another_on_create=$(get_project_prop "another" "on_create")
 assert_eq "fallback to DEFAULT on_create" "echo default" "$another_on_create"
 another_session=$(get_project_prop "another" "session_name")
 assert_eq "session_name defaults to section name" "another" "$another_session"
+#shellcheck disable=SC2088
 expanded=$(expand_path "~/foo/bar")
 assert_eq "expand_path expands tilde" "$HOME/foo/bar"   "$expanded"
 echo -e "${BOLD}test: config parser continuation lines$RESET"

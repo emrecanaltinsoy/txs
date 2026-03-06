@@ -1,8 +1,3 @@
-# exclude: |
-#   (?x)^(
-#     frontend/business/chatbot-web/lex-web-ui/package.json|
-#     frontend/business/chatbot-web/lex-web-ui/package-lock.json
-#   )$
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
@@ -16,8 +11,3 @@ repos:
     rev: v3.12.0-2
     hooks:
       - id: shfmt
-
-  - repo: https://github.com/koalaman/shellcheck-precommit
-    rev: v0.11.0
-    hooks:
-      - id: shellcheck
