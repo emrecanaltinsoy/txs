@@ -133,12 +133,12 @@ txs help             Show help
 
 | Variable    | Description                                                                 |
 |-------------|-----------------------------------------------------------------------------|
-| `TXS_POPUP` | When set to `1`, txs will not launch in a tmux popup even if run inside tmux. This is useful when you want to control the display behavior yourself, for example when launching txs inside an editor's floating terminal. |
+| `TXS_POPUP` | When set to `1`, txs will not launch in a tmux popup even if run inside tmux. This is useful when you want to control the display behavior yourself. |
 
 ## Keybindings
 
 I mainly access txs through keybindings in tmux and Neovim rather than running
-it directly from the shell.
+it directly from the shell. However, you can use it in any terminal. Here are some example keybindings:
 
 ### tmux
 
@@ -148,15 +148,10 @@ bind-key -r a run-shell "txs"
 
 ### Neovim
 
-Instead of running the script directly, I use the `Snacks.terminal` API to launch it in a floating terminal. This ensures a consistent experience whether I'm inside tmux or not, and keeps me in the editor.
+If not inside tmux, this keymap will not work, but it won't cause any issues either. If inside tmux, it will open the tmux popup with the interactive session picker.
 
 ```lua
-vim.keymap.set(
-  { "n" },
-  "<leader>tt",
-  "<cmd>lua Snacks.terminal('TXS_POPUP=1 txs', { win = {position = 'float'}})<cr>",
-  { desc = "Start txs" }
-)
+vim.keymap.set({ "n" }, "<leader>tt", "<cmd>silent !txs<cr>", { desc = "Start txs" })
 ```
 
 ## Pairing with tmuxifier
