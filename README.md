@@ -1,6 +1,7 @@
 # txs
 
 A command-line tool to manage tmux sessions from predefined project directories.
+Inspired by [ThePrimeagen's tmux-sessionizer](https://github.com/ThePrimeagen/tmux-sessionizer) and [jrmoulton's tmux-sessionizer](https://github.com/jrmoulton/tmux-sessionizer), tailored to my workflow for managing multiple projects in separate tmux sessions with custom layouts.
 
 txs lets you define your projects in a simple INI-style configuration file and
 quickly create, switch to, list, or kill tmux sessions. It includes an
@@ -33,14 +34,14 @@ curl -fsSL https://raw.githubusercontent.com/emrecanaltinsoy/txs/main/install.sh
 ```
 
 This clones the repo, runs `make install`, and cleans up. It installs to
-`~/.local` by default. You can pass options after `bash -s --`:
+`$HOME/.local` by default. You can pass options after `bash -s --`:
 
 ```sh
 # Custom prefix
 curl -fsSL https://raw.githubusercontent.com/emrecanaltinsoy/txs/main/install.sh | bash -s -- --prefix /usr/local
 
 # Specific version
-curl -fsSL https://raw.githubusercontent.com/emrecanaltinsoy/txs/main/install.sh | bash -s -- --tag v1.0.0
+curl -fsSL https://raw.githubusercontent.com/emrecanaltinsoy/txs/main/install.sh | bash -s -- --tag v0.1.0
 ```
 
 ### Manual install
@@ -61,10 +62,10 @@ To enable shell completions, add one of these to your shell rc file:
 
 ```sh
 # zsh
-source ~/.local/share/txs/completions/txs.zsh
+[[ -f "$HOME/.local/share/txs/completions/txs.zsh" ]] && source "$HOME/.local/share/txs/completions/txs.zsh"
 
 # bash
-source ~/.local/share/txs/completions/txs.bash
+[[ -f "$HOME/.local/share/txs/completions/txs.bash" ]] && source "$HOME/.local/share/txs/completions/txs.bash"
 ```
 
 ## Uninstallation
@@ -77,7 +78,7 @@ This removes txs but keeps your configuration.
 
 ## Configuration
 
-txs reads project definitions from `~/.config/txs/projects.conf`. An example
+txs reads project definitions from `$HOME/.config/txs/projects.conf`. An example
 config is installed automatically on first install.
 
 ```ini

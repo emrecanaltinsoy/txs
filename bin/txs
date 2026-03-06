@@ -37,47 +37,47 @@ source "${TXS_ROOT}/ui.sh"
 # ---------------------------------------------------------------------------
 
 main() {
-  local cmd="${1:-}"
+	local cmd="${1:-}"
 
-  case "$cmd" in
-  list)
-    cmd_list
-    ;;
-  projects)
-    cmd_projects
-    ;;
-  create)
-    if [[ -z "${2:-}" ]]; then
-      error "Missing project name."
-      echo "Usage: txs create <project-name>"
-      return 1
-    fi
-    cmd_create "$2"
-    ;;
-  kill)
-    if [[ -z "${2:-}" ]]; then
-      error "Missing session name."
-      echo "Usage: txs kill <session-name>"
-      return 1
-    fi
-    cmd_kill "$2"
-    ;;
-  help | --help | -h)
-    cmd_help
-    ;;
-  version | --version | -v)
-    echo "txs ${TXS_VERSION}"
-    ;;
-  "")
-    cmd_interactive
-    ;;
-  *)
-    error "Unknown command '${cmd}'."
-    echo ""
-    cmd_help
-    return 1
-    ;;
-  esac
+	case "$cmd" in
+	list)
+		cmd_list
+		;;
+	projects)
+		cmd_projects
+		;;
+	create)
+		if [[ -z "${2:-}" ]]; then
+			error "Missing project name."
+			echo "Usage: txs create <project-name>"
+			return 1
+		fi
+		cmd_create "$2"
+		;;
+	kill)
+		if [[ -z "${2:-}" ]]; then
+			error "Missing session name."
+			echo "Usage: txs kill <session-name>"
+			return 1
+		fi
+		cmd_kill "$2"
+		;;
+	help | --help | -h)
+		cmd_help
+		;;
+	version | --version | -v)
+		echo "txs ${TXS_VERSION}"
+		;;
+	"")
+		cmd_interactive
+		;;
+	*)
+		error "Unknown command '${cmd}'."
+		echo ""
+		cmd_help
+		return 1
+		;;
+	esac
 }
 
 main "$@"
