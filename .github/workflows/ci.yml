@@ -20,14 +20,8 @@ jobs:
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
 
-      - name: Run shellcheck on library files
-        run: shellcheck -s bash lib/*.sh
-
-      - name: Run shellcheck on bin/txs
-        run: shellcheck -s bash bin/txs
-
-      - name: Run shellcheck on completions
-        run: shellcheck -s bash completions/txs.bash || true
+      - name: Run shellcheck
+        run: shellcheck -s bash lib/*.sh bin/txs completions/txs.bash install.sh
 
   test:
     name: Tests

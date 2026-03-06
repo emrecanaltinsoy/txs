@@ -26,11 +26,32 @@ support.
 
 ## Installation
 
+### Quick install
+
 ```sh
+curl -fsSL https://raw.githubusercontent.com/emrecanaltinsoy/txs/main/install.sh | bash
+```
+
+This clones the repo, runs `make install`, and cleans up. It installs to
+`~/.local` by default. You can pass options after `bash -s --`:
+
+```sh
+# Custom prefix
+curl -fsSL https://raw.githubusercontent.com/emrecanaltinsoy/txs/main/install.sh | bash -s -- --prefix /usr/local
+
+# Specific version
+curl -fsSL https://raw.githubusercontent.com/emrecanaltinsoy/txs/main/install.sh | bash -s -- --tag v1.0.0
+```
+
+### Manual install
+
+```sh
+git clone https://github.com/emrecanaltinsoy/txs.git
+cd txs
 make install
 ```
 
-This installs txs to `~/.local` by default. You can change the prefix:
+You can change the prefix:
 
 ```sh
 make install PREFIX=/usr/local
