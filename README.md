@@ -1,5 +1,11 @@
 # txs
 
+<p align="center">
+  <a href="https://github.com/emrecanaltinsoy/txs/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/emrecanaltinsoy/txs/ci.yml?logo=github&label=ci-check" alt="GitHub Actions Workflow Status"></a>
+  <a href="https://github.com/emrecanaltinsoy/txs/releases"><img src="https://img.shields.io/github/v/release/emrecanaltinsoy/txs?display_name=release" alt="GitHub Release"></a>
+  <a href="https://github.com/emrecanaltinsoy/txs/blob/main/LICENSE"><img src="https://img.shields.io/github/license/emrecanaltinsoy/txs" alt="GitHub License"></a>
+</p>
+
 A command-line tool to manage tmux sessions from predefined project directories.
 Inspired by [ThePrimeagen's tmux-sessionizer](https://github.com/ThePrimeagen/tmux-sessionizer) and [jrmoulton's tmux-sessionizer](https://github.com/jrmoulton/tmux-sessionizer), tailored to my workflow for managing multiple projects in separate tmux sessions with custom layouts.
 
