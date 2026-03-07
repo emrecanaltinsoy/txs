@@ -9,6 +9,7 @@
 #   txs create NAME  # Create/attach session for a project
 #   txs add [PATH]   # Add a directory to the config
 #   txs remove NAME  # Remove a project from the config
+#   txs clone-bare REPO_URL [DIR]  # Clone repo as bare + worktree setup
 #   txs config       # Open config in $EDITOR
 #   txs kill NAME    # Kill a tmux session
 #   txs help         # Show help
@@ -67,6 +68,14 @@ main() {
 			return 1
 		fi
 		cmd_remove "$2"
+		;;
+	clone-bare)
+		if [[ -z "${2:-}" ]]; then
+			error "Missing repository URL."
+			echo "Usage: txs clone-bare <repo-url> [folder-name]"
+			return 1
+		fi
+		cmd_clone_bare "$2" "${3:-}"
 		;;
 	config)
 		cmd_config

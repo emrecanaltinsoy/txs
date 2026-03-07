@@ -14,6 +14,9 @@ quickly create, switch to, list, or kill tmux sessions. It includes an
 interactive fuzzy-finder picker powered by fzf, with automatic tmux popup
 support.
 
+It also includes a helper command to clone repositories as bare repos with a
+default worktree so you can keep using Git worktrees cleanly.
+
 ## Features
 
 - **Interactive session picker** -- fuzzy-find and switch between projects with fzf
@@ -122,12 +125,33 @@ txs                  Interactive fuzzy-finder session picker
 txs create <name>    Create or switch to a session for a project
 txs add [path]       Add a directory to the config (default: current dir)
 txs remove <name>    Remove a project from the config
+txs clone-bare <url> [name]
+                     Clone as bare repo + create default branch worktree
 txs config           Open the config file in $EDITOR
 txs kill <name>      Kill a tmux session
 txs list             List active tmux sessions
 txs projects         List all configured projects and their status
 txs help             Show help
 ```
+
+### Clone Bare For Worktrees
+
+`txs clone-bare <repo-url> [folder-name]` creates a repository layout suited
+for worktree-heavy workflows:
+
+- clones the repository as a bare repo into `.bare/`
+- writes `.git` to point at `./.bare`
+- fetches remote branches with a full branch refspec
+- creates a default branch worktree (origin HEAD, then `main`, then `master`)
+
+Example:
+
+```sh
+txs clone-bare git@github.com:org/repo.git
+```
+
+This creates `./repo` (or your custom folder name), stores git data in
+`./repo/.bare`, and checks out the default branch into `./repo/<branch>`.
 
 ### Environment variables
 

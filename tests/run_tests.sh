@@ -79,6 +79,7 @@ assert_contains "help mentions USAGE" "$help_output" "USAGE"
 assert_contains "help mentions list command" "$help_output" "txs list"
 assert_contains "help mentions create command" "$help_output" "txs create"
 assert_contains "help mentions kill command" "$help_output" "txs kill"
+assert_contains "help mentions clone-bare command" "$help_output" "txs clone-bare"
 echo -e "${BOLD}test: unknown command$RESET"
 unknown_output=$("$TXS" nonexistent 2>&1) && ec=0 || ec=$?
 assert_exit_code "unknown command exits non-zero" "1" "$ec"

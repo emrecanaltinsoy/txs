@@ -172,6 +172,71 @@ cmd_config()
     fi
     exec "$editor" "$CONFIG_FILE"
 }
+cmd_clone_bare()
+                {
+    local repo_url="$1"
+    local folder_name="${2:-}"
+
+    if [[ -z $repo_url ]]; then
+        error "Missing repository URL."
+        echo "Usage: txs clone-bare <repo-url> [folder-name]"
+        return 1
+    fi
+
+    if [[ -z $folder_name ]]; then
+        folder_name=$(basename "${repo_url%/}")
+        folder_name="${folder_name%.git}"
+    fi
+
+    if [[ -z $folder_name ]]; then
+        error "Could not derive destination folder from URL: $repo_url"
+        return 1
+    fi
+
+    if [[ -e $folder_name ]]; then
+        error "Destination already exists: $folder_name"
+        return 1
+    fi
+
+    mkdir "$folder_name"
+    (   
+        cd "$folder_name" || exit
+
+        git clone --bare "$repo_url" .bare
+        printf 'gitdir: ./.bare\n' > .git
+
+        git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+        git fetch origin
+
+        local default_branch=""
+        if git show-ref --verify --quiet refs/remotes/origin/HEAD; then
+            default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD)
+            default_branch="${default_branch#origin/}"
+        elif git show-ref --verify --quiet refs/remotes/origin/main; then
+            default_branch="main"
+        elif git show-ref --verify --quiet refs/remotes/origin/master; then
+            default_branch="master"
+        else
+            default_branch=$(git for-each-ref --format='%(refname:short)' refs/remotes/origin | sed -n 's#^origin/##p' | sed '/^HEAD$/d' | head -n 1)
+        fi
+
+        if [[ -z $default_branch ]]; then
+            error "Could not detect a default remote branch from origin."
+            exit 1
+        fi
+
+        if git show-ref --verify --quiet "refs/heads/$default_branch"; then
+            git worktree add "$default_branch" "$default_branch"
+        else
+            git worktree add -b "$default_branch" "$default_branch" "origin/$default_branch"
+        fi
+
+        echo "---------------------------------------------------"
+        info "Success! Setup complete in: $folder_name"
+        echo "Your repo data is hidden in .bare/"
+        echo "Your active worktree is in ./$default_branch"
+    )
+}
 cmd_help()
            {
     cat << EOF
@@ -184,6 +249,8 @@ USAGE:
     txs create <name>    Create/attach session for a project
     txs add [path]       Add a directory to the config (default: .)
     txs remove <name>    Remove a project from the config
+    txs clone-bare <url> [name]
+                         Clone a repo as bare + create default worktree
     txs config           Open the config file in \$EDITOR
     txs kill <name>      Kill a tmux session
     txs help             Show this help message

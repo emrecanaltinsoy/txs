@@ -19,6 +19,7 @@ _txs() {
 		'create:Create/attach session for a project'
 		'add:Add a directory to the config'
 		'remove:Remove a project from the config'
+		'clone-bare:Clone repo as bare with worktree'
 		'config:Open config file in $EDITOR'
 		'kill:Kill a tmux session'
 		'help:Show help message'
