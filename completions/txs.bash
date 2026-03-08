@@ -18,7 +18,7 @@ _txs() {
 
 	# Completing the subcommand (first argument)
 	if [[ $COMP_CWORD -eq 1 ]]; then
-		mapfile -t COMPREPLY < <(compgen -W "list projects create add remove clone-bare config kill help version" -- "$cur")
+		mapfile -t COMPREPLY < <(compgen -W "list worktrees projects create add remove clone-bare config kill help version" -- "$cur")
 		return
 	fi
 
@@ -26,6 +26,9 @@ _txs() {
 	case "$prev" in
 	create)
 		mapfile -t COMPREPLY < <(compgen -W "$(_txs_projects)" -- "$cur")
+		;;
+	worktrees)
+		mapfile -t COMPREPLY < <(compgen -W "$(_txs_sessions)" -- "$cur")
 		;;
 	add)
 		mapfile -t COMPREPLY < <(compgen -d -- "$cur")

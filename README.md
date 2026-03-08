@@ -130,6 +130,7 @@ txs clone-bare <url> [name]
 txs config           Open the config file in $EDITOR
 txs kill <name>      Kill a tmux session
 txs list             List active tmux sessions
+txs worktrees [name] List/switch git worktrees in active tmux sessions
 txs projects         List all configured projects and their status
 txs help             Show help
 ```

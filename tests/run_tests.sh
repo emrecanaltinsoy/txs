@@ -77,6 +77,7 @@ echo -e "${BOLD}test: help$RESET"
 help_output=$("$TXS" help 2>&1) || true
 assert_contains "help mentions USAGE" "$help_output" "USAGE"
 assert_contains "help mentions list command" "$help_output" "txs list"
+assert_contains "help mentions worktrees command" "$help_output" "txs worktrees"
 assert_contains "help mentions create command" "$help_output" "txs create"
 assert_contains "help mentions kill command" "$help_output" "txs kill"
 assert_contains "help mentions clone-bare command" "$help_output" "txs clone-bare"

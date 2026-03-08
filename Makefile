@@ -8,6 +8,7 @@ SHAREDIR  = $(PREFIX)/share/txs/completions
 LIB_FILES = lib/log.sh \
             lib/config.sh \
             lib/tmux.sh \
+            lib/git.sh \
             lib/commands.sh \
             lib/ui.sh
 

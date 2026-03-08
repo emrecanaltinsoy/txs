@@ -5,6 +5,7 @@
 # Usage:
 #   txs              # Interactive fzf picker
 #   txs list         # List active tmux sessions
+#   txs worktrees [NAME]  # List/switch git worktrees in active tmux sessions
 #   txs projects     # List configured projects
 #   txs create NAME  # Create/attach session for a project
 #   txs add [PATH]   # Add a directory to the config
@@ -31,6 +32,8 @@ source "${TXS_ROOT}/log.sh"
 source "${TXS_ROOT}/config.sh"
 # shellcheck source=../lib/tmux.sh
 source "${TXS_ROOT}/tmux.sh"
+# shellcheck source=../lib/git.sh
+source "${TXS_ROOT}/git.sh"
 # shellcheck source=../lib/commands.sh
 source "${TXS_ROOT}/commands.sh"
 # shellcheck source=../lib/ui.sh
@@ -46,6 +49,9 @@ main() {
 	case "$cmd" in
 	list)
 		cmd_list
+		;;
+	worktrees)
+		cmd_worktrees "${2:-}"
 		;;
 	projects)
 		cmd_projects

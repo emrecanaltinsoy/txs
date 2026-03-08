@@ -15,6 +15,7 @@ _txs_sessions() {
 _txs() {
 	local -a subcommands=(
 		'list:List active tmux sessions'
+		'worktrees:List git worktrees in active tmux sessions'
 		'projects:List configured projects'
 		'create:Create/attach session for a project'
 		'add:Add a directory to the config'
@@ -36,6 +37,11 @@ _txs() {
 		local -a projects
 		projects=("${(@f)$(_txs_projects)}")
 		[[ ${#projects[@]} -gt 0 ]] && _describe 'project' projects
+		;;
+	worktrees)
+		local -a sessions
+		sessions=("${(@f)$(_txs_sessions)}")
+		[[ ${#sessions[@]} -gt 0 ]] && _describe 'session' sessions
 		;;
 	add)
 		_path_files -/

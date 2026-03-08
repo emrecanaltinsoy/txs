@@ -36,3 +36,21 @@ fetch_session_windows()
         fi
     done < <(tmux list-windows -a -F "#{session_name}:#{window_name}" 2> /dev/null || true)
 }
+open_worktree_in_session()
+                        {
+    local session="$1"
+    local worktree_path="$2"
+
+    local win_id pane_path
+    while IFS='|' read -r win_id pane_path; do
+        [[ -z $win_id || -z $pane_path ]] && continue
+        if [[ $pane_path == "$worktree_path" || $pane_path == "$worktree_path"/* ]]; then
+            tmux select-window -t "$win_id"
+            tmux_attach_or_switch "$session"
+            return 0
+        fi
+    done < <(tmux list-panes -t "=$session" -a -F "#{window_id}|#{pane_current_path}" 2> /dev/null || true)
+
+    tmux new-window -t "=$session" -n "$(basename "$worktree_path")" -c "$worktree_path"
+    tmux_attach_or_switch "$session"
+}

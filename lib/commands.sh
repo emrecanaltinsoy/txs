@@ -15,6 +15,54 @@ cmd_list()
         echo -e "  $GREEN$session$RESET  ${DIM}[$windows]$RESET"
     done <<< "$sessions"
 }
+cmd_worktrees()
+                {
+    local selector="${1:-}"
+    local worktrees
+    worktrees=$(get_active_worktrees)
+
+    if [[ -z $worktrees ]]; then
+        echo -e "${DIM}No worktrees found.$RESET"
+        return 0
+    fi
+
+    if [[ -n $selector ]]; then
+        local session wt_path label
+        while IFS=$'\t' read -r session wt_path label; do
+            if [[ $selector == "$label" || $selector == "$(basename "$wt_path")" ]]; then
+                open_worktree_in_session "$session" "$wt_path"
+                return $?
+            fi
+        done <<< "$worktrees"
+
+        error "No worktree found: $selector"
+        return 1
+    fi
+
+    if ! command -v fzf &> /dev/null; then
+        local session wt_path label
+        while IFS=$'\t' read -r session wt_path label; do
+            echo -e "  $GREEN$label$RESET"
+        done <<< "$worktrees"
+        return 0
+    fi
+
+    local selected
+    selected=$(printf '%s\n' "$worktrees" | fzf \
+        --delimiter=$'\t' \
+        --with-nth=3 \
+        --header="Pick a worktree (ESC to cancel)" \
+        --prompt="worktree> " \
+        --layout=reverse \
+        --border \
+        --ansi) || return 0
+
+    local chosen_session chosen_path
+    IFS=$'\t' read -r chosen_session chosen_path _ <<< "$selected"
+    [[ -z $chosen_session || -z $chosen_path ]] && return 0
+
+    open_worktree_in_session "$chosen_session" "$chosen_path"
+}
 cmd_projects()
                {
     parse_config || return 1
@@ -172,71 +220,6 @@ cmd_config()
     fi
     exec "$editor" "$CONFIG_FILE"
 }
-cmd_clone_bare()
-                {
-    local repo_url="$1"
-    local folder_name="${2:-}"
-
-    if [[ -z $repo_url ]]; then
-        error "Missing repository URL."
-        echo "Usage: txs clone-bare <repo-url> [folder-name]"
-        return 1
-    fi
-
-    if [[ -z $folder_name ]]; then
-        folder_name=$(basename "${repo_url%/}")
-        folder_name="${folder_name%.git}"
-    fi
-
-    if [[ -z $folder_name ]]; then
-        error "Could not derive destination folder from URL: $repo_url"
-        return 1
-    fi
-
-    if [[ -e $folder_name ]]; then
-        error "Destination already exists: $folder_name"
-        return 1
-    fi
-
-    mkdir "$folder_name"
-    (   
-        cd "$folder_name" || exit
-
-        git clone --bare "$repo_url" .bare
-        printf 'gitdir: ./.bare\n' > .git
-
-        git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-        git fetch origin
-
-        local default_branch=""
-        if git show-ref --verify --quiet refs/remotes/origin/HEAD; then
-            default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD)
-            default_branch="${default_branch#origin/}"
-        elif git show-ref --verify --quiet refs/remotes/origin/main; then
-            default_branch="main"
-        elif git show-ref --verify --quiet refs/remotes/origin/master; then
-            default_branch="master"
-        else
-            default_branch=$(git for-each-ref --format='%(refname:short)' refs/remotes/origin | sed -n 's#^origin/##p' | sed '/^HEAD$/d' | head -n 1)
-        fi
-
-        if [[ -z $default_branch ]]; then
-            error "Could not detect a default remote branch from origin."
-            exit 1
-        fi
-
-        if git show-ref --verify --quiet "refs/heads/$default_branch"; then
-            git worktree add "$default_branch" "$default_branch"
-        else
-            git worktree add -b "$default_branch" "$default_branch" "origin/$default_branch"
-        fi
-
-        echo "---------------------------------------------------"
-        info "Success! Setup complete in: $folder_name"
-        echo "Your repo data is hidden in .bare/"
-        echo "Your active worktree is in ./$default_branch"
-    )
-}
 cmd_help()
            {
     cat << EOF
@@ -245,6 +228,7 @@ txs - Manage tmux sessions from predefined project directories
 USAGE:
     txs                  Interactive fzf picker
     txs list             List active tmux sessions
+    txs worktrees [name] List/switch git worktrees in active tmux sessions
     txs projects         List configured projects
     txs create <name>    Create/attach session for a project
     txs add [path]       Add a directory to the config (default: .)
