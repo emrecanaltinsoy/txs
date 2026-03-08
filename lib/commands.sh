@@ -39,6 +39,13 @@ cmd_worktrees()
         return 1
     fi
 
+    if is_inside_tmux && [[ -z ${TXS_POPUP:-} ]]; then
+        local self
+        self=$(readlink -f "$0")
+        tmux display-popup -E -w 80% -h 70% "TXS_POPUP=1 bash \"$self\" worktrees"
+        return 0
+    fi
+
     if ! command -v fzf &> /dev/null; then
         local session wt_path label
         while IFS=$'\t' read -r session wt_path label; do

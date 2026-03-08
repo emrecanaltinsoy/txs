@@ -41,16 +41,47 @@ open_worktree_in_session()
     local session="$1"
     local worktree_path="$2"
 
-    local win_id pane_path
-    while IFS='|' read -r win_id pane_path; do
-        [[ -z $win_id || -z $pane_path ]] && continue
-        if [[ $pane_path == "$worktree_path" || $pane_path == "$worktree_path"/* ]]; then
-            tmux select-window -t "$win_id"
-            tmux_attach_or_switch "$session"
-            return 0
-        fi
-    done < <(tmux list-panes -t "=$session" -a -F "#{window_id}|#{pane_current_path}" 2> /dev/null || true)
+    # Check terminal interactivity before entering the loop, because
+    # the while-read loop redirects stdin from a process substitution
+    # which makes `-t 0` false inside the loop body.
+    local has_tty=false
+    [[ -t 0 && -t 1 ]] && has_tty=true
 
+    local matched_win=""
+    local win_index pane_path
+    while IFS='|' read -r win_index pane_path; do
+        [[ -z $win_index || -z $pane_path ]] && continue
+        if [[ $pane_path == "$worktree_path" || $pane_path == "$worktree_path"/* ]]; then
+            matched_win="$win_index"
+            break
+        fi
+    done < <(tmux list-panes -t "=$session" -a -F "#{window_index}|#{pane_current_path}" 2> /dev/null || true)
+
+    if [[ -n $matched_win ]]; then
+        if is_inside_tmux; then
+            tmux select-window -t "=$session:$matched_win"
+            tmux switch-client -t "=$session"
+        else
+            if $has_tty; then
+                tmux attach-session -t "=$session:$matched_win"
+            else
+                local client_tty
+                client_tty=""
+                while IFS= read -r client_tty; do
+                    [[ -n $client_tty ]] && break
+                done < <(tmux list-clients -F "#{client_tty}" 2> /dev/null || true)
+                if [[ -n $client_tty ]]; then
+                    tmux switch-client -c "$client_tty" -t "=$session:$matched_win"
+                else
+                    error "Cannot attach to tmux: no interactive terminal or tmux client available."
+                    return 1
+                fi
+            fi
+        fi
+        return 0
+    fi
+
+    echo "No existing window found for worktree. Creating a new one..."
     tmux new-window -a -t "=$session" -n "$(basename "$worktree_path")" -c "$worktree_path"
     tmux_attach_or_switch "$session"
 }
