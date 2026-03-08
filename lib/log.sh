@@ -12,14 +12,14 @@ else
     BOLD='' DIM='' GREEN='' YELLOW='' CYAN='' RED='' RESET=''
 fi
 info()
-       {
-         echo -e "$GREEN>$RESET $*"
+{
+    echo -e "$GREEN>$RESET $*"
 }
 warn()
-       {
-         echo -e "${YELLOW}Warning:$RESET $*"   >&2
+{
+    echo -e "${YELLOW}Warning:$RESET $*" >&2
 }
 error()
-        {
-          echo -e "${RED}Error:$RESET $*"   >&2
+{
+    echo -e "${RED}Error:$RESET $*" >&2
 }

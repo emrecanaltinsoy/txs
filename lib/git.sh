@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 get_active_worktrees()
-                      {
+{
     declare -A seen=()
     local pane_path session
     while IFS='|' read -r session pane_path; do
@@ -20,8 +20,8 @@ get_active_worktrees()
             [[ -z $git_dir ]] && continue
             case "$(basename "$git_dir")" in
                 .bare) repo_name=$(basename "$(dirname "$git_dir")") ;;
-                .git)  repo_name=$(basename "$(dirname "$git_dir")") ;;
-                *)     repo_name=$(basename "$git_dir") ;;
+                .git) repo_name=$(basename "$(dirname "$git_dir")") ;;
+                *) repo_name=$(basename "$git_dir") ;;
             esac
         fi
 
@@ -46,7 +46,7 @@ get_active_worktrees()
     done < <(tmux list-panes -a -F "#{session_name}|#{pane_current_path}" 2> /dev/null || true)
 }
 cmd_clone_bare()
-                {
+{
     local repo_url="$1"
     local folder_name="${2:-}"
 
@@ -72,7 +72,7 @@ cmd_clone_bare()
     fi
 
     mkdir "$folder_name"
-    (   
+    (
         cd "$folder_name" || exit
 
         git clone --bare "$repo_url" .bare

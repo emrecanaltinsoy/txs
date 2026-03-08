@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 cmd_list()
-           {
+{
     local sessions
     sessions=$(get_active_sessions)
     if [[ -z $sessions ]]; then
@@ -16,7 +16,7 @@ cmd_list()
     done <<< "$sessions"
 }
 cmd_worktrees()
-                {
+{
     local selector="${1:-}"
     local worktrees
     worktrees=$(get_active_worktrees)
@@ -64,7 +64,7 @@ cmd_worktrees()
     open_worktree_in_session "$chosen_session" "$chosen_path"
 }
 cmd_projects()
-               {
+{
     parse_config || return 1
     if [[ ${#PROJECT_ORDER[@]} -eq 0 ]]; then
         echo -e "${DIM}No projects configured in $CONFIG_FILE$RESET"
@@ -103,7 +103,7 @@ cmd_projects()
     done
 }
 cmd_create()
-             {
+{
     local project="$1"
     parse_config || return 1
     if [[ -z ${PROJECT_PATH[$project]:-} ]]; then
@@ -138,7 +138,7 @@ cmd_create()
     tmux_attach_or_switch "$session_name"
 }
 cmd_kill()
-           {
+{
     local target="$1"
     if ! tmux_session_exists "$target"; then
         error "Session '$target' does not exist."
@@ -148,7 +148,7 @@ cmd_kill()
     echo -e "Killed session $GREEN$target$RESET."
 }
 cmd_add()
-          {
+{
     local raw_path="${1:-.}"
     local resolved
     resolved=$(realpath "$raw_path" 2> /dev/null) || {
@@ -183,7 +183,7 @@ cmd_add()
     info "Added project ${GREEN}$name${RESET} ($resolved)"
 }
 cmd_remove()
-             {
+{
     local project="$1"
     if [[ ! -f $CONFIG_FILE ]]; then
         error "Config file not found: $CONFIG_FILE"
@@ -212,7 +212,7 @@ cmd_remove()
     info "Removed project ${GREEN}$project${RESET}"
 }
 cmd_config()
-             {
+{
     local editor="${EDITOR:-vi}"
     if [[ ! -f $CONFIG_FILE ]]; then
         mkdir -p "$(dirname "$CONFIG_FILE")"
@@ -221,7 +221,7 @@ cmd_config()
     exec "$editor" "$CONFIG_FILE"
 }
 cmd_help()
-           {
+{
     cat << EOF
 txs - Manage tmux sessions from predefined project directories
 

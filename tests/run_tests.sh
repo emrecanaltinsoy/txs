@@ -7,7 +7,7 @@ FAIL=0
 TOTAL=0
 source "$PROJECT_ROOT/lib/log.sh"
 assert_eq()
-            {
+{
     local description="$1"
     local expected="$2"
     local actual="$3"
@@ -23,7 +23,7 @@ assert_eq()
     fi
 }
 assert_contains()
-                  {
+{
     local description="$1"
     local haystack="$2"
     local needle="$3"
@@ -39,7 +39,7 @@ assert_contains()
     fi
 }
 assert_exit_code()
-                   {
+{
     local description="$1"
     local expected="$2"
     local actual="$3"
@@ -56,12 +56,12 @@ assert_exit_code()
 }
 TMPDIR_INSTALL=$(mktemp -d)
 cleanup()
-          {
-            rm -rf "$TMPDIR_INSTALL" "${TMPDIR_TEST:-}"
+{
+    rm -rf "$TMPDIR_INSTALL" "${TMPDIR_TEST:-}"
 }
 trap cleanup EXIT
-mkdir -p "$TMPDIR_INSTALL/bin"   "$TMPDIR_INSTALL/lib/txs"
-cp "$PROJECT_ROOT/bin/txs"   "$TMPDIR_INSTALL/bin/txs"
+mkdir -p "$TMPDIR_INSTALL/bin" "$TMPDIR_INSTALL/lib/txs"
+cp "$PROJECT_ROOT/bin/txs" "$TMPDIR_INSTALL/bin/txs"
 chmod +x "$TMPDIR_INSTALL/bin/txs"
 for f in "$PROJECT_ROOT"/lib/*.sh; do
     cp "$f" "$TMPDIR_INSTALL/lib/txs/"
@@ -95,7 +95,7 @@ assert_exit_code "kill without arg exits non-zero" "1" "$ec"
 assert_contains "kill without arg shows error" "$kill_output" "Missing session name"
 echo -e "${BOLD}test: config parser$RESET"
 TMPDIR_TEST=$(mktemp -d)
-cat > "$TMPDIR_TEST/projects.conf"  << 'CONF'
+cat > "$TMPDIR_TEST/projects.conf" << 'CONF'
 [DEFAULT]
 on_create = echo default
 
@@ -128,9 +128,9 @@ another_session=$(get_project_prop "another" "session_name")
 assert_eq "session_name defaults to section name" "another" "$another_session"
 #shellcheck disable=SC2088
 expanded=$(expand_path "~/foo/bar")
-assert_eq "expand_path expands tilde" "$HOME/foo/bar"   "$expanded"
+assert_eq "expand_path expands tilde" "$HOME/foo/bar" "$expanded"
 echo -e "${BOLD}test: config parser continuation lines$RESET"
-cat > "$TMPDIR_TEST/projects.conf"  << 'CONF'
+cat > "$TMPDIR_TEST/projects.conf" << 'CONF'
 [multi]
 path = ~/multi
 on_create = tmux split-window -v

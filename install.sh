@@ -5,8 +5,8 @@ BRANCH="main"
 CLONE_URL="https://github.com/$REPO.git"
 TMPDIR=""
 cleanup()
-          {
-            [[ -n $TMPDIR   ]] && rm -rf "$TMPDIR"
+{
+    [[ -n $TMPDIR ]] && rm -rf "$TMPDIR"
 }
 trap cleanup EXIT
 if [[ -t 1 ]]; then
@@ -15,12 +15,12 @@ else
     GREEN='' RED='' DIM='' RESET=''
 fi
 info()
-       {
-         echo -e "$GREEN>$RESET $*"
+{
+    echo -e "$GREEN>$RESET $*"
 }
 error()
-        {
-          echo -e "${RED}error:$RESET $*"   >&2
+{
+    echo -e "${RED}error:$RESET $*" >&2
 }
 for cmd in git make install; do
     if ! command -v "$cmd" &> /dev/null; then
@@ -49,7 +49,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -h | --help)
-             echo "Usage: install.sh [OPTIONS]"
+            echo "Usage: install.sh [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --prefix DIR   Installation prefix (default: $HOME/.local)"
@@ -64,7 +64,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 TMPDIR=$(mktemp -d)
-if [[ -n $TAG   ]]; then
+if [[ -n $TAG ]]; then
     info "Cloning txs ($TAG)..."
     git clone --depth 1 --branch "$TAG" "$CLONE_URL" "$TMPDIR/txs" 2>&1 | tail -1
 else
@@ -76,7 +76,7 @@ make -C "$TMPDIR/txs" install PREFIX="$PREFIX"
 echo ""
 if command -v txs &> /dev/null; then
     info "Done! txs $(txs version 2> /dev/null || true) is ready."
-elif [[ -x "$PREFIX/bin/txs"   ]]; then
+elif [[ -x "$PREFIX/bin/txs" ]]; then
     info "Done! Installed to $PREFIX/bin/txs"
     echo ""
     echo -e "${DIM}Make sure $PREFIX/bin is in your PATH:$RESET"

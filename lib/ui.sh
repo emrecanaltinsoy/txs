@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 cmd_interactive()
-                  {
+{
     if ! command -v fzf &> /dev/null; then
         error "fzf is required for interactive mode."
         echo "Install fzf or use subcommands directly (e.g., txs list)"

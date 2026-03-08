@@ -9,7 +9,7 @@ declare -A PROJECT_ON_CREATE
 declare -a PROJECT_ORDER=()
 declare -A DEFAULTS
 parse_config()
-               {
+{
     if [[ ! -f $CONFIG_FILE ]]; then
         error "Config file not found: $CONFIG_FILE"
         echo "Create it with example projects, or run: txs help"
@@ -95,7 +95,7 @@ parse_config()
     done < "$CONFIG_FILE"
 }
 get_project_prop()
-                   {
+{
     local project="$1"
     local prop="$2"
     case "$prop" in
@@ -103,7 +103,7 @@ get_project_prop()
             echo "${PROJECT_PATH[$project]:-}"
             ;;
         session_name)
-              local name="${PROJECT_SESSION_NAME[$project]:-${DEFAULTS[session_name]:-}}"
+            local name="${PROJECT_SESSION_NAME[$project]:-${DEFAULTS[session_name]:-}}"
             [[ -z $name ]] && name="$project"
             echo "${name//./-}"
             ;;
@@ -111,7 +111,7 @@ get_project_prop()
     esac
 }
 expand_path()
-              {
+{
     local path="$1"
     echo "${path/#\~/$HOME}"
 }
