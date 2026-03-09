@@ -234,7 +234,7 @@ txs - Manage tmux sessions from predefined project directories
 USAGE:
     txs                  Interactive fzf picker
     txs list             List active tmux sessions
-    txs worktrees [name] List/switch git worktrees in active tmux sessions
+    txs worktrees [name] List/switch git worktrees (fuzzy finder when no arg)
     txs projects         List configured projects
     txs create <name>    Create/attach session for a project
     txs add [path]       Add a directory to the config (default: .)
