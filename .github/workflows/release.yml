@@ -159,9 +159,14 @@ jobs:
             [[ -n "$FEATS" ]] && CHANGELOG+="### Features\n${FEATS}\n\n"
             [[ -n "$FIXES" ]] && CHANGELOG+="### Bug Fixes\n${FIXES}\n\n"
             [[ -n "$OTHERS" ]] && CHANGELOG+="### Other\n${OTHERS}\n\n"
+
           done
 
           echo -e "$CHANGELOG" > CHANGELOG.md
+          echo "## Installation" >> CHANGELOG.md
+          echo '```sh' >> CHANGELOG.md
+          echo "curl -fsSL [https://raw.githubusercontent.com/emrecanaltinsoy/txs/$](https://raw.githubusercontent.com/emrecanaltinsoy/txs/$){tag}/install.sh | bash -s -- --tag ${tag}" >> CHANGELOG.md
+          echo '```' >> CHANGELOG.md
 
       - name: Commit changelog
         run: |
