@@ -1,7 +1,22 @@
 #!/usr/bin/env bash
+
+TXS_POPUP_WIDTH="${TXS_POPUP_WIDTH:-80%}"
+TXS_POPUP_HEIGHT="${TXS_POPUP_HEIGHT:-70%}"
+
 is_inside_tmux()
 {
     [[ -n ${TMUX:-} ]]
+}
+check_relaunch_in_popup()
+{
+    local extra_args="${1:-}"
+    if is_inside_tmux && [[ -z ${TXS_POPUP:-} ]]; then
+        local self
+        self=$(readlink -f "$0")
+        tmux display-popup -E -w "$TXS_POPUP_WIDTH" -h "$TXS_POPUP_HEIGHT" "TXS_POPUP=1 bash \"$self\" $extra_args"
+        return 0
+    fi
+    return 1
 }
 tmux_session_exists()
 {

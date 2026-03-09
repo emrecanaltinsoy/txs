@@ -6,12 +6,7 @@ cmd_interactive()
         echo "Install fzf or use subcommands directly (e.g., txs list)"
         return 1
     fi
-    if is_inside_tmux && [[ -z ${TXS_POPUP:-} ]]; then
-        local self
-        self=$(readlink -f "$0")
-        tmux display-popup -E -w 80% -h 70% "TXS_POPUP=1 bash \"$self\""
-        return 0
-    fi
+    check_relaunch_in_popup && return 0
     parse_config || return 1
     local active_sessions
     active_sessions=$(get_active_sessions)
