@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+# Sourced by bin/txs -- not meant to be executed directly
 cmd_interactive()
 {
     if ! command -v fzf &> /dev/null; then

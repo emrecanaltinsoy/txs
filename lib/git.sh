@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+# Sourced by bin/txs -- not meant to be executed directly
 
 repo_name_from_url()
 {

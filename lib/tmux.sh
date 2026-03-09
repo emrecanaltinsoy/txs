@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+# Sourced by bin/txs -- not meant to be executed directly
 
 TXS_POPUP_WIDTH="${TXS_POPUP_WIDTH:-80%}"
 TXS_POPUP_HEIGHT="${TXS_POPUP_HEIGHT:-70%}"

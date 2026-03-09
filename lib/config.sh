@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+# Sourced by bin/txs -- not meant to be executed directly
 # shellcheck disable=SC2034  # used by sourcing scripts
 TXS_VERSION="0.2.1"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/txs"

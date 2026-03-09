@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+# Sourced by bin/txs -- not meant to be executed directly
 if [[ -t 1 ]]; then
     BOLD='\033[1m'
     DIM='\033[2m'
