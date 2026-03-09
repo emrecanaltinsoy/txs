@@ -19,8 +19,7 @@ get_active_worktrees()
             [[ $git_dir != /* ]] && git_dir=$(realpath "$pane_path/$git_dir" 2> /dev/null || true)
             [[ -z $git_dir ]] && continue
             case "$(basename "$git_dir")" in
-                .bare) repo_name=$(basename "$(dirname "$git_dir")") ;;
-                .git) repo_name=$(basename "$(dirname "$git_dir")") ;;
+                .bare | .git) repo_name=$(basename "$(dirname "$git_dir")") ;;
                 *) repo_name=$(basename "$git_dir") ;;
             esac
         fi
