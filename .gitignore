@@ -1,6 +1,19 @@
+# Editor swap/backup files
 *.swp
 *.swo
+*.bak
 *~
-.DS_Store
 
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE directories
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# OpenCode
 .opencode

@@ -8,6 +8,13 @@ declare -gA PROJECT_SESSION_NAME
 declare -gA PROJECT_ON_CREATE
 declare -ga PROJECT_ORDER=()
 declare -gA DEFAULTS
+_trim()
+{
+    local str="$1"
+    str="${str#"${str%%[![:space:]]*}"}"
+    str="${str%"${str##*[![:space:]]}"}"
+    printf '%s' "$str"
+}
 parse_config()
 {
     if [[ ! -f $CONFIG_FILE ]]; then
@@ -21,14 +28,14 @@ parse_config()
     while IFS= read -r raw_line || [[ -n $raw_line ]]; do
         ((line_num++))
         if [[ -n $last_key && -n $current_section && $raw_line =~ ^[[:space:]]+[^[:space:]] ]]; then
-            local cont_value="${raw_line#"${raw_line%%[![:space:]]*}"}"
-            cont_value="${cont_value%"${cont_value##*[![:space:]]}"}"
+            local cont_value
+            cont_value=$(_trim "$raw_line")
             if [[ -z $cont_value || $cont_value == \#* ]]; then
                 continue
             fi
             if [[ $cont_value != \"*\" && $cont_value != \'*\' ]]; then
                 cont_value="${cont_value%%#*}"
-                cont_value="${cont_value%"${cont_value##*[![:space:]]}"}"
+                cont_value=$(_trim "$cont_value")
             fi
             if [[ $current_section == "DEFAULT" ]]; then
                 case "$last_key" in
@@ -43,8 +50,8 @@ parse_config()
             fi
             continue
         fi
-        local line="${raw_line#"${raw_line%%[![:space:]]*}"}"
-        line="${line%"${line##*[![:space:]]}"}"
+        local line
+        line=$(_trim "$raw_line")
         if [[ -z $line || $line == \#* ]]; then
             last_key=""
             continue
@@ -62,7 +69,7 @@ parse_config()
             local value="${BASH_REMATCH[2]}"
             if [[ $value != \"*\" && $value != \'*\' ]]; then
                 value="${value%%#*}"
-                value="${value%"${value##*[![:space:]]}"}"
+                value=$(_trim "$value")
             fi
             last_key="$key"
             if [[ $current_section == "DEFAULT" ]]; then

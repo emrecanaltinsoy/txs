@@ -30,7 +30,7 @@ _txs() {
 	worktrees)
 		mapfile -t COMPREPLY < <(compgen -W "$(_txs_sessions)" -- "$cur")
 		;;
-	add)
+	add | clone-bare)
 		mapfile -t COMPREPLY < <(compgen -d -- "$cur")
 		;;
 	remove)

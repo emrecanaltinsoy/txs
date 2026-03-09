@@ -8,40 +8,15 @@ permissions:
   contents: write
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # Step 1: Lint and test
-  # ---------------------------------------------------------------------------
-  lint:
-    name: Shellcheck
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install shellcheck
-        run: sudo apt-get update && sudo apt-get install -y shellcheck
-
-      - name: Run lint
-        run: make lint
-
-  test:
-    name: Tests
-    needs: lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install tmux
-        run: sudo apt-get update && sudo apt-get install -y tmux
-
-      - name: Run tests
-        run: bash tests/run_tests.sh
+  checks:
+    uses: ./.github/workflows/checks.yml
 
   # ---------------------------------------------------------------------------
-  # Step 2: Package and release
+  # Package and release (runs after all checks pass)
   # ---------------------------------------------------------------------------
   release:
     name: GitHub Release
-    needs: test
+    needs: checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

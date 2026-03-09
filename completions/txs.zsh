@@ -43,7 +43,7 @@ _txs() {
 		sessions=("${(@f)$(_txs_sessions)}")
 		[[ ${#sessions[@]} -gt 0 ]] && _describe 'session' sessions
 		;;
-	add)
+	add | clone-bare)
 		_path_files -/
 		;;
 	remove)

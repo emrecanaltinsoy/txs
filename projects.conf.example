@@ -14,10 +14,13 @@
 #       tmux select-pane -t 1
 #       nvim .
 #
-# The [DEFAULT] section provides fallback values for all projects.
-# Dots in session names are replaced with dashes automatically.
+# Notes:
+#   - The [DEFAULT] section provides fallback values for all projects.
+#   - Only ~ is expanded in paths; $HOME and other variables are not.
+#   - Dots in session names are replaced with dashes (tmux restriction).
 
 [DEFAULT]
+# on_create = echo "session ready"
 
 # Uncomment and customize the examples below:
 

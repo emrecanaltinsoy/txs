@@ -132,6 +132,7 @@ txs kill <name>      Kill a tmux session
 txs list             List active tmux sessions
 txs worktrees [name] List/switch git worktrees (fuzzy finder when no arg)
 txs projects         List all configured projects and their status
+txs version          Show version
 txs help             Show help
 ```
 
@@ -158,7 +159,7 @@ This creates `./repo` (or your custom folder name), stores git data in
 
 | Variable           | Description                                                                 |
 |--------------------|-----------------------------------------------------------------------------|
-| `TXS_POPUP`        | When set to `1`, txs will not launch in a tmux popup even if run inside tmux. This is useful when you want to control the display behavior yourself. |
+| `TXS_POPUP`        | Set internally when running inside a tmux popup. Set to any non-empty value to prevent txs from launching in a popup. |
 | `TXS_POPUP_WIDTH`  | Width of tmux popup (default: 80%)                                          |
 | `TXS_POPUP_HEIGHT` | Height of tmux popup (default: 70%)                                         |
 
