@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Step 1: Run lint and tests before releasing
+  # Step 1: Lint and test
   # ---------------------------------------------------------------------------
   lint:
     name: Shellcheck
@@ -37,20 +37,18 @@ jobs:
         run: bash tests/run_tests.sh
 
   # ---------------------------------------------------------------------------
-  # Step 2: Generate release notes from conventional commits
+  # Step 2: Package and release
   # ---------------------------------------------------------------------------
-  release-notes:
-    name: Generate release notes
+  release:
+    name: GitHub Release
     needs: test
     runs-on: ubuntu-latest
-    outputs:
-      notes: ${{ steps.notes.outputs.release_notes }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Build release notes from commits since last tag
+      - name: Generate release notes
         id: notes
         run: |
           TAG="${{ github.ref_name }}"
@@ -68,127 +66,50 @@ jobs:
 
           COMMITS=$(git log "$RANGE" --pretty=format:"%s" --no-merges 2>/dev/null || true)
 
-          if [[ -z "$COMMITS" ]]; then
-            echo "No commits found in range."
-            {
-              echo "release_notes<<RELEASE_NOTES_EOF"
-              echo "No notable changes."
-              echo "RELEASE_NOTES_EOF"
-            } >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
           BREAKING_NOTES=""
           FEAT_NOTES=""
           FIX_NOTES=""
           OTHER_NOTES=""
 
-          while IFS= read -r msg; do
-            if [[ "$msg" =~ ^feat(\(.+\))?!?:\ (.+) ]]; then
-              FEAT_NOTES+="- ${BASH_REMATCH[2]}"$'\n'
-            elif [[ "$msg" =~ ^fix(\(.+\))?!?:\ (.+) ]]; then
-              FIX_NOTES+="- ${BASH_REMATCH[2]}"$'\n'
-            elif [[ "$msg" =~ ^[a-z]+(\(.+\))?:\ (.+) ]]; then
-              OTHER_NOTES+="- ${BASH_REMATCH[2]}"$'\n'
-            fi
-            if [[ "$msg" =~ ^[a-z]+(\(.+\))?!: ]] || [[ "$msg" == *"BREAKING CHANGE"* ]]; then
-              BREAKING_NOTES+="- ${msg}"$'\n'
-            fi
-          done <<< "$COMMITS"
+          if [[ -n "$COMMITS" ]]; then
+            while IFS= read -r msg; do
+              [[ "$msg" =~ ^chore\(release\): ]] && continue
+              if [[ "$msg" =~ ^feat(\(.+\))?!?:\ (.+) ]]; then
+                FEAT_NOTES+="- ${BASH_REMATCH[2]}"$'\n'
+              elif [[ "$msg" =~ ^fix(\(.+\))?!?:\ (.+) ]]; then
+                FIX_NOTES+="- ${BASH_REMATCH[2]}"$'\n'
+              elif [[ "$msg" =~ ^[a-z]+(\(.+\))?:\ (.+) ]]; then
+                OTHER_NOTES+="- ${BASH_REMATCH[2]}"$'\n'
+              fi
+              if [[ "$msg" =~ ^[a-z]+(\(.+\))?!: ]] || [[ "$msg" == *"BREAKING CHANGE"* ]]; then
+                BREAKING_NOTES+="- ${msg}"$'\n'
+              fi
+            done <<< "$COMMITS"
+          fi
 
           NOTES=""
-          if [[ -n "$BREAKING_NOTES" ]]; then
-            NOTES+="## Breaking Changes"$'\n'"${BREAKING_NOTES}"$'\n'
-          fi
-          if [[ -n "$FEAT_NOTES" ]]; then
-            NOTES+="## Features"$'\n'"${FEAT_NOTES}"$'\n'
-          fi
-          if [[ -n "$FIX_NOTES" ]]; then
-            NOTES+="## Bug Fixes"$'\n'"${FIX_NOTES}"$'\n'
-          fi
-          if [[ -n "$OTHER_NOTES" ]]; then
-            NOTES+="## Other Changes"$'\n'"${OTHER_NOTES}"$'\n'
-          fi
+          [[ -n "$BREAKING_NOTES" ]] && NOTES+="## Breaking Changes"$'\n'"${BREAKING_NOTES}"$'\n'
+          [[ -n "$FEAT_NOTES" ]]     && NOTES+="## Features"$'\n'"${FEAT_NOTES}"$'\n'
+          [[ -n "$FIX_NOTES" ]]      && NOTES+="## Bug Fixes"$'\n'"${FIX_NOTES}"$'\n'
+          [[ -n "$OTHER_NOTES" ]]    && NOTES+="## Other Changes"$'\n'"${OTHER_NOTES}"$'\n'
+
+          NOTES+="## Installation"$'\n'$'\n'
+          NOTES+="### Quick install"$'\n'$'\n'
+          NOTES+='```sh'$'\n'
+          NOTES+="curl -fsSL https://raw.githubusercontent.com/emrecanaltinsoy/txs/main/install.sh | bash -s -- --tag ${TAG}"$'\n'
+          NOTES+='```'$'\n'$'\n'
+          NOTES+="### From tarball"$'\n'$'\n'
+          NOTES+='```sh'$'\n'
+          NOTES+="tar xzf txs-${TAG#v}.tar.gz"$'\n'
+          NOTES+="cd txs-${TAG#v}"$'\n'
+          NOTES+="make install"$'\n'
+          NOTES+='```'$'\n'
 
           {
             echo "release_notes<<RELEASE_NOTES_EOF"
             echo "$NOTES"
             echo "RELEASE_NOTES_EOF"
           } >> "$GITHUB_OUTPUT"
-
-  # ---------------------------------------------------------------------------
-  # Step 3: Generate changelog
-  # ---------------------------------------------------------------------------
-  changelog:
-    name: Generate changelog
-    needs: [test, release-notes]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref_name }}
-          fetch-depth: 0
-
-      - name: Configure git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Generate CHANGELOG.md
-        run: |
-          # Build full changelog from all tags
-          CHANGELOG="# Changelog\n\nAll notable changes to this project will be documented in this file.\n"
-
-          for tag in $(git tag --sort=-v:refname); do
-            TAG_DATE=$(git log -1 --format=%ai "$tag" | cut -d' ' -f1)
-            PREV_TAG=$(git tag --sort=-v:refname | grep -A1 "^${tag}$" | tail -1)
-
-            if [[ "$PREV_TAG" == "$tag" ]]; then
-              RANGE="$tag"
-            else
-              RANGE="${PREV_TAG}..${tag}"
-            fi
-
-            CHANGELOG+="\n## ${tag} (${TAG_DATE})\n\n"
-
-            # Group commits
-            FEATS=$(git log "$RANGE" --pretty=format:"%s" 2>/dev/null | grep -E "^feat" | sed 's/^feat[^:]*: /- /' || true)
-            FIXES=$(git log "$RANGE" --pretty=format:"%s" 2>/dev/null | grep -E "^fix" | sed 's/^fix[^:]*: /- /' || true)
-            OTHERS=$(git log "$RANGE" --pretty=format:"%s" 2>/dev/null | grep -Ev "^(feat|fix|chore\(release\))" | sed 's/^[a-z]*[^:]*: /- /' || true)
-
-            [[ -n "$FEATS" ]] && CHANGELOG+="### Features\n${FEATS}\n\n"
-            [[ -n "$FIXES" ]] && CHANGELOG+="### Bug Fixes\n${FIXES}\n\n"
-            [[ -n "$OTHERS" ]] && CHANGELOG+="### Other\n${OTHERS}\n\n"
-
-          done
-
-          echo -e "$CHANGELOG" > CHANGELOG.md
-          echo "## Installation" >> CHANGELOG.md
-          echo '```sh' >> CHANGELOG.md
-          echo "curl -fsSL [https://raw.githubusercontent.com/emrecanaltinsoy/txs/$](https://raw.githubusercontent.com/emrecanaltinsoy/txs/$){tag}/install.sh | bash -s -- --tag ${tag}" >> CHANGELOG.md
-          echo '```' >> CHANGELOG.md
-
-      - name: Commit changelog
-        run: |
-          if git diff --quiet CHANGELOG.md 2>/dev/null; then
-            echo "No changelog changes to commit"
-          else
-            git add CHANGELOG.md
-            git commit -m "docs: update CHANGELOG.md for ${{ github.ref_name }}"
-            git push origin HEAD:main
-          fi
-
-  # ---------------------------------------------------------------------------
-  # Step 4: Package tarball and create GitHub Release
-  # ---------------------------------------------------------------------------
-  release:
-    name: GitHub Release
-    needs: [release-notes, changelog]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref_name }}
 
       - name: Create tarball
         run: |
@@ -210,11 +131,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ github.ref_name }}"
-          NOTES="${{ needs.release-notes.outputs.notes }}"
 
           gh release create "$TAG" \
             --title "txs ${TAG}" \
-            --notes "${NOTES}" \
+            --notes "${{ steps.notes.outputs.release_notes }}" \
             "${ARCHIVE}"
 
           echo "Release ${TAG} created with asset ${ARCHIVE}"

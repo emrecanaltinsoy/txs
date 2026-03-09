@@ -24,9 +24,9 @@ install:
 	@if [ ! -f "$(CONFDIR)/projects.conf" ]; then \
 		install -Dm644 projects.conf.example "$(CONFDIR)/projects.conf"; \
 		echo "Installed example config to $(CONFDIR)/projects.conf"; \
-	else \
+	elif [ -t 0 ]; then \
 		printf "Config already exists at $(CONFDIR)/projects.conf. Overwrite? [y/N] "; \
-		read ans; \
+		read -r ans; \
 		case "$$ans" in \
 			[yY]*) \
 				install -Dm644 projects.conf.example "$(CONFDIR)/projects.conf"; \
@@ -36,6 +36,8 @@ install:
 				echo "Kept existing config"; \
 				;; \
 		esac; \
+	else \
+		echo "Kept existing config at $(CONFDIR)/projects.conf"; \
 	fi
 	@echo ""
 	@echo "Installed txs to $(BINDIR)/txs"

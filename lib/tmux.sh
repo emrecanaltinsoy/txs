@@ -11,9 +11,11 @@ check_relaunch_in_popup()
 {
     local extra_args="${1:-}"
     if is_inside_tmux && [[ -z ${TXS_POPUP:-} ]]; then
-        local self
+        local self cmd
         self=$(readlink -f "$0")
-        tmux display-popup -E -w "$TXS_POPUP_WIDTH" -h "$TXS_POPUP_HEIGHT" "TXS_POPUP=1 bash \"$self\" $extra_args"
+        cmd="TXS_POPUP=1 bash $(printf '%q' "$self")"
+        [[ -n $extra_args ]] && cmd+=" $(printf '%q' "$extra_args")"
+        tmux display-popup -E -w "$TXS_POPUP_WIDTH" -h "$TXS_POPUP_HEIGHT" "$cmd"
         return 0
     fi
     return 1
