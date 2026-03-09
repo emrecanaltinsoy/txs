@@ -130,7 +130,10 @@ cmd_create()
         return 0
     fi
     echo -e "Creating session $GREEN$session_name$RESET at $path..."
-    tmux new-session -d -s "$session_name" -c "$path"
+    if ! tmux new-session -d -s "$session_name" -c "$path"; then
+        error "Failed to create tmux session '$session_name'"
+        return 1
+    fi
     if [[ -n $on_create ]]; then
         while IFS= read -r cmd; do
             [[ -z $cmd ]] && continue
@@ -211,6 +214,7 @@ cmd_remove()
     # Remove trailing blank lines left behind
     sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$tmpfile"
     cp "$tmpfile" "$CONFIG_FILE"
+    rm -f "$tmpfile"
     info "Removed project ${GREEN}$project${RESET}"
 }
 cmd_config()
@@ -279,4 +283,63 @@ DEPENDENCIES:
     Required: tmux, bash
     Optional: fzf (interactive mode)
 EOF
+}
+cmd_clone_bare()
+{
+    local repo_url="$1"
+    local folder_name="${2:-}"
+
+    if [[ -z $folder_name ]]; then
+        folder_name=$(basename "${repo_url%/}")
+        folder_name="${folder_name%.git}"
+    fi
+
+    if [[ -z $folder_name ]]; then
+        error "Could not derive destination folder from URL: $repo_url"
+        return 1
+    fi
+
+    if [[ -e $folder_name ]]; then
+        error "Destination already exists: $folder_name"
+        return 1
+    fi
+
+    mkdir "$folder_name"
+    (
+        cd "$folder_name" || exit
+
+        git clone --bare "$repo_url" .bare
+        printf 'gitdir: ./.bare\n' > .git
+
+        git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+        git fetch origin
+
+        local default_branch=""
+        if git show-ref --verify --quiet refs/remotes/origin/HEAD; then
+            default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD)
+            default_branch="${default_branch#origin/}"
+        elif git show-ref --verify --quiet refs/remotes/origin/main; then
+            default_branch="main"
+        elif git show-ref --verify --quiet refs/remotes/origin/master; then
+            default_branch="master"
+        else
+            default_branch=$(git for-each-ref --format='%(refname:short)' refs/remotes/origin | sed -n 's#^origin/##p' | sed '/^HEAD$/d' | head -n 1)
+        fi
+
+        if [[ -z $default_branch ]]; then
+            error "Could not detect a default remote branch from origin."
+            exit 1
+        fi
+
+        if git show-ref --verify --quiet "refs/heads/$default_branch"; then
+            git worktree add "$default_branch" "$default_branch"
+        else
+            git worktree add -b "$default_branch" "$default_branch" "origin/$default_branch"
+        fi
+
+        echo "---------------------------------------------------"
+        info "Success! Setup complete in: $folder_name"
+        echo "Your repo data is hidden in .bare/"
+        echo "Your active worktree is in ./$default_branch"
+    )
 }

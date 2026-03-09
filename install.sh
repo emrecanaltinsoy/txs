@@ -3,10 +3,10 @@ set -euo pipefail
 REPO="emrecanaltinsoy/txs"
 BRANCH="main"
 CLONE_URL="https://github.com/$REPO.git"
-TMPDIR=""
+TXS_TMPDIR=""
 cleanup()
 {
-    [[ -n $TMPDIR ]] && rm -rf "$TMPDIR"
+    [[ -n $TXS_TMPDIR ]] && rm -rf "$TXS_TMPDIR"
 }
 trap cleanup EXIT
 if [[ -t 1 ]]; then
@@ -63,16 +63,16 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
-TMPDIR=$(mktemp -d)
+TXS_TMPDIR=$(mktemp -d)
 if [[ -n $TAG ]]; then
     info "Cloning txs ($TAG)..."
-    git clone --depth 1 --branch "$TAG" "$CLONE_URL" "$TMPDIR/txs" 2>&1 | tail -1
+    git clone --depth 1 --branch "$TAG" "$CLONE_URL" "$TXS_TMPDIR/txs" 2>&1 | tail -1
 else
     info "Cloning txs (latest)..."
-    git clone --depth 1 --branch "$BRANCH" "$CLONE_URL" "$TMPDIR/txs" 2>&1 | tail -1
+    git clone --depth 1 --branch "$BRANCH" "$CLONE_URL" "$TXS_TMPDIR/txs" 2>&1 | tail -1
 fi
 info "Installing to $PREFIX..."
-make -C "$TMPDIR/txs" install PREFIX="$PREFIX"
+make -C "$TXS_TMPDIR/txs" install PREFIX="$PREFIX"
 echo ""
 if command -v txs &> /dev/null; then
     info "Done! txs $(txs version 2> /dev/null || true) is ready."
