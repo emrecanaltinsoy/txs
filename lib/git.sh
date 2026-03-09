@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
+
+repo_name_from_url()
+{
+    local url="$1"
+    local name
+    name=$(basename "${url%/}")
+    echo "${name%.git}"
+}
+
 get_active_worktrees()
 {
     declare -A seen=()
@@ -13,8 +22,7 @@ get_active_worktrees()
 
         origin_url=$(git -C "$pane_path" config --get remote.origin.url 2> /dev/null || true)
         if [[ -n $origin_url ]]; then
-            repo_name=$(basename "${origin_url%/}")
-            repo_name="${repo_name%.git}"
+            repo_name=$(repo_name_from_url "$origin_url")
         else
             [[ $git_dir != /* ]] && git_dir=$(realpath "$pane_path/$git_dir" 2> /dev/null || true)
             [[ -z $git_dir ]] && continue

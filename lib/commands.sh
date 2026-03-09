@@ -290,8 +290,7 @@ cmd_clone_bare()
     local folder_name="${2:-}"
 
     if [[ -z $folder_name ]]; then
-        folder_name=$(basename "${repo_url%/}")
-        folder_name="${folder_name%.git}"
+        folder_name=$(repo_name_from_url "$repo_url")
     fi
 
     if [[ -z $folder_name ]]; then
