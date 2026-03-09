@@ -108,7 +108,7 @@ open_worktree_in_session()
     local worktree_path="$2"
 
     local matched_win
-    matched_win=$(find_window_by_path "$session" "$worktree_path")
+    matched_win=$(find_window_by_path "$session" "$worktree_path") || true
 
     if [[ -n $matched_win ]]; then
         tmux_attach_or_switch_window "$session" "$matched_win"
