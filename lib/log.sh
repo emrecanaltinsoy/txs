@@ -13,13 +13,13 @@ else
 fi
 info()
 {
-    echo -e "$GREEN>$RESET $*"
+    printf '%b %s\n' "${GREEN}>" "${RESET}$*"
 }
 warn()
 {
-    echo -e "${YELLOW}Warning:$RESET $*" >&2
+    printf '%b %s\n' "${YELLOW}Warning:" "${RESET}$*" >&2
 }
 error()
 {
-    echo -e "${RED}Error:$RESET $*" >&2
+    printf '%b %s\n' "${RED}Error:" "${RESET}$*" >&2
 }

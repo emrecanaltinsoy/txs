@@ -74,15 +74,19 @@ jobs:
           if [[ -n "$COMMITS" ]]; then
             while IFS= read -r msg; do
               [[ "$msg" =~ ^chore\(release\): ]] && continue
-              if [[ "$msg" =~ ^feat(\(.+\))?!?:\ (.+) ]]; then
-                FEAT_NOTES+="- ${BASH_REMATCH[2]}"$'\n'
-              elif [[ "$msg" =~ ^fix(\(.+\))?!?:\ (.+) ]]; then
-                FIX_NOTES+="- ${BASH_REMATCH[2]}"$'\n'
-              elif [[ "$msg" =~ ^[a-z]+(\(.+\))?:\ (.+) ]]; then
-                OTHER_NOTES+="- ${BASH_REMATCH[2]}"$'\n'
-              fi
+              is_breaking=false
               if [[ "$msg" =~ ^[a-z]+(\(.+\))?!: ]] || [[ "$msg" == *"BREAKING CHANGE"* ]]; then
                 BREAKING_NOTES+="- ${msg}"$'\n'
+                is_breaking=true
+              fi
+              if ! $is_breaking; then
+                if [[ "$msg" =~ ^feat(\(.+\))?!?:\ (.+) ]]; then
+                  FEAT_NOTES+="- ${BASH_REMATCH[2]}"$'\n'
+                elif [[ "$msg" =~ ^fix(\(.+\))?!?:\ (.+) ]]; then
+                  FIX_NOTES+="- ${BASH_REMATCH[2]}"$'\n'
+                elif [[ "$msg" =~ ^[a-z]+(\(.+\))?:\ (.+) ]]; then
+                  OTHER_NOTES+="- ${BASH_REMATCH[2]}"$'\n'
+                fi
               fi
             done <<< "$COMMITS"
           fi

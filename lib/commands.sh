@@ -81,7 +81,7 @@ cmd_projects()
         path=$(get_project_prop "$project" "path")
         session_name=$(get_project_prop "$project" "session_name")
         on_create=$(get_project_prop "$project" "on_create")
-        if echo "$active_sessions" | grep -qx "$session_name"; then
+        if echo "$active_sessions" | grep -Fqx "$session_name"; then
             status="${GREEN}active$RESET"
         else
             status="${DIM}inactive$RESET"
@@ -173,7 +173,7 @@ cmd_add()
         return 1
     fi
     # Check for duplicate section
-    if [[ -f $CONFIG_FILE ]] && grep -q "^\[$name\]$" "$CONFIG_FILE"; then
+    if [[ -f $CONFIG_FILE ]] && grep -Fxq "[$name]" "$CONFIG_FILE"; then
         error "Project '$name' already exists in $CONFIG_FILE"
         return 1
     fi
@@ -195,7 +195,7 @@ cmd_remove()
         return 1
     fi
     # Check if section exists
-    if ! grep -q "^\[$project\]$" "$CONFIG_FILE"; then
+    if ! grep -Fxq "[$project]" "$CONFIG_FILE"; then
         error "Project '$project' not found in $CONFIG_FILE"
         return 1
     fi
@@ -203,6 +203,8 @@ cmd_remove()
     # until the next section header or end of file
     local tmpfile
     tmpfile=$(mktemp)
+    # shellcheck disable=SC2064
+    trap "rm -f '$tmpfile'" RETURN
     awk -v section="$project" '
         BEGIN { skip = 0 }
         /^\[/ {
@@ -214,7 +216,6 @@ cmd_remove()
     # Remove trailing blank lines left behind
     sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$tmpfile"
     cp "$tmpfile" "$CONFIG_FILE"
-    rm -f "$tmpfile"
     info "Removed project ${GREEN}$project${RESET}"
 }
 cmd_config()

@@ -24,7 +24,7 @@ set -euo pipefail
 # Resolve and source library files
 # ---------------------------------------------------------------------------
 
-TXS_ROOT="$(dirname "$(readlink -f "$0")")/../lib/txs"
+TXS_ROOT="$(cd "$(dirname "$0")/.." && pwd -P)/lib/txs"
 
 # shellcheck source=../lib/log.sh
 source "${TXS_ROOT}/log.sh"
