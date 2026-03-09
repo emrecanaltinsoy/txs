@@ -115,8 +115,26 @@ open_worktree_in_session()
         return $?
     fi
 
-    echo "No existing window found for worktree. Creating a new one..."
     local new_win
     new_win=$(tmux new-window -a -t "=$session" -n "$(basename "$worktree_path")" -c "$worktree_path" -P -F "#{window_index}")
+
+    # Run on_create commands if the session belongs to a configured project
+    parse_config 2> /dev/null || true
+    local on_create=""
+    for project in "${PROJECT_ORDER[@]}"; do
+        local sname
+        sname=$(get_project_prop "$project" "session_name")
+        if [[ $sname == "$session" ]]; then
+            on_create=$(get_project_prop "$project" "on_create")
+            break
+        fi
+    done
+    if [[ -n $on_create ]]; then
+        while IFS= read -r cmd; do
+            [[ -z $cmd ]] && continue
+            tmux send-keys -t "=$session:$new_win" "$cmd" Enter
+        done <<< "$on_create"
+    fi
+
     tmux_attach_or_switch_window "$session" "$new_win"
 }
