@@ -14,13 +14,15 @@ if [[ -t 1 ]]; then
 else
     GREEN='' RED='' DIM='' RESET=''
 fi
+
+# Standalone script -- cannot source lib/log.sh before cloning the repo
 info()
 {
     echo -e "$GREEN>$RESET $*"
 }
 error()
 {
-    echo -e "${RED}error:$RESET $*" >&2
+    echo -e "${RED}Error:$RESET $*" >&2
 }
 for cmd in git make install; do
     if ! command -v "$cmd" &> /dev/null; then
