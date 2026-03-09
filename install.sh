@@ -18,11 +18,11 @@ fi
 # Standalone script -- cannot source lib/log.sh before cloning the repo
 info()
 {
-    echo -e "$GREEN>$RESET $*"
+    printf '%b %s\n' "${GREEN}>" "${RESET}$*"
 }
 error()
 {
-    echo -e "${RED}Error:$RESET $*" >&2
+    printf '%b %s\n' "${RED}Error:" "${RESET}$*" >&2
 }
 for cmd in git make install; do
     if ! command -v "$cmd" &> /dev/null; then
@@ -68,10 +68,16 @@ done
 TXS_TMPDIR=$(mktemp -d)
 if [[ -n $TAG ]]; then
     info "Cloning txs ($TAG)..."
-    git clone --depth 1 --branch "$TAG" "$CLONE_URL" "$TXS_TMPDIR/txs" 2>&1 | tail -1
+    if ! git clone --depth 1 --branch "$TAG" "$CLONE_URL" "$TXS_TMPDIR/txs"; then
+        error "Failed to clone txs (tag: $TAG)"
+        exit 1
+    fi
 else
     info "Cloning txs (latest)..."
-    git clone --depth 1 --branch "$BRANCH" "$CLONE_URL" "$TXS_TMPDIR/txs" 2>&1 | tail -1
+    if ! git clone --depth 1 --branch "$BRANCH" "$CLONE_URL" "$TXS_TMPDIR/txs"; then
+        error "Failed to clone txs"
+        exit 1
+    fi
 fi
 info "Installing to $PREFIX..."
 make -C "$TXS_TMPDIR/txs" install PREFIX="$PREFIX"
@@ -81,7 +87,7 @@ if command -v txs &> /dev/null; then
 elif [[ -x "$PREFIX/bin/txs" ]]; then
     info "Done! Installed to $PREFIX/bin/txs"
     echo ""
-    echo -e "${DIM}Make sure $PREFIX/bin is in your PATH:$RESET"
+    printf '%b\n' "${DIM}Make sure $PREFIX/bin is in your PATH:$RESET"
     echo "  export PATH=\"$PREFIX/bin:\$PATH\""
 else
     error "Installation may have failed - $PREFIX/bin/txs not found."

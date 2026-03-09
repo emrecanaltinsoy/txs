@@ -3,11 +3,11 @@
 TXS_VERSION="0.3.0"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/txs"
 CONFIG_FILE="$CONFIG_DIR/projects.conf"
-declare -A PROJECT_PATH
-declare -A PROJECT_SESSION_NAME
-declare -A PROJECT_ON_CREATE
-declare -a PROJECT_ORDER=()
-declare -A DEFAULTS
+declare -gA PROJECT_PATH
+declare -gA PROJECT_SESSION_NAME
+declare -gA PROJECT_ON_CREATE
+declare -ga PROJECT_ORDER=()
+declare -gA DEFAULTS
 parse_config()
 {
     if [[ ! -f $CONFIG_FILE ]]; then

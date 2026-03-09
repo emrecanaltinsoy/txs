@@ -213,9 +213,8 @@ cmd_remove()
         }
         !skip { print }
     ' "$CONFIG_FILE" > "$tmpfile"
-    # Remove trailing blank lines left behind
-    sed -i -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$tmpfile"
-    cp "$tmpfile" "$CONFIG_FILE"
+    # Remove trailing blank lines (portable across GNU/BSD)
+    awk '/[^[:space:]]/ { blank = 0 } { lines[++n] = $0; if (/[^[:space:]]/) last = n } END { for (i = 1; i <= last; i++) print lines[i] }' "$tmpfile" > "$CONFIG_FILE"
     info "Removed project ${GREEN}$project${RESET}"
 }
 cmd_config()

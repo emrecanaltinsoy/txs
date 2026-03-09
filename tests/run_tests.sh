@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -uo pipefail
-TESTS_DIR="$(dirname "$(readlink -f "$0")")"
+TESTS_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 PROJECT_ROOT="$(dirname "$TESTS_DIR")"
 PASS=0
 FAIL=0

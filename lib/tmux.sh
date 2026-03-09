@@ -37,7 +37,7 @@ get_active_sessions()
 {
     tmux list-sessions -F "#{session_name}" 2> /dev/null || true
 }
-declare -A SESSION_WINDOWS=()
+declare -gA SESSION_WINDOWS=()
 fetch_session_windows()
 {
     SESSION_WINDOWS=()

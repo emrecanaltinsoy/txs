@@ -49,7 +49,6 @@ jobs:
           fetch-depth: 0
 
       - name: Generate release notes
-        id: notes
         run: |
           TAG="${{ github.ref_name }}"
 
@@ -109,11 +108,7 @@ jobs:
           NOTES+="make install"$'\n'
           NOTES+='```'$'\n'
 
-          {
-            echo "release_notes<<RELEASE_NOTES_EOF"
-            echo "$NOTES"
-            echo "RELEASE_NOTES_EOF"
-          } >> "$GITHUB_OUTPUT"
+          echo "$NOTES" > release-notes.md
 
       - name: Create tarball
         run: |
@@ -125,6 +120,8 @@ jobs:
           cp -r bin lib completions Makefile LICENSE README.md projects.conf.example "txs-${VERSION}/"
           tar czf "$ARCHIVE" "txs-${VERSION}"
           rm -rf "txs-${VERSION}"
+
+          sha256sum "$ARCHIVE" > "${ARCHIVE}.sha256"
 
           echo "ARCHIVE=${ARCHIVE}" >> "$GITHUB_ENV"
           echo "Created ${ARCHIVE}"
@@ -138,7 +135,7 @@ jobs:
 
           gh release create "$TAG" \
             --title "txs ${TAG}" \
-            --notes "${{ steps.notes.outputs.release_notes }}" \
-            "${ARCHIVE}"
+            --notes-file release-notes.md \
+            "${ARCHIVE}" "${ARCHIVE}.sha256"
 
           echo "Release ${TAG} created with asset ${ARCHIVE}"
