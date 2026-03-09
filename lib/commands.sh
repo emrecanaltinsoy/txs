@@ -286,6 +286,7 @@ EOF
 }
 cmd_clone_bare()
 {
+    # Argument validation done in bin/txs via require_arg
     local repo_url="$1"
     local folder_name="${2:-}"
 
