@@ -73,10 +73,10 @@ tmux_attach_or_switch_window()
 {
     local session="$1"
     local win_index="$2"
+    local target="=$session:$win_index"
 
     if is_inside_tmux; then
-        tmux select-window -t "=$session:$win_index"
-        tmux switch-client -t "=$session"
+        tmux switch-client -t "$target"
         return 0
     fi
 
@@ -84,7 +84,7 @@ tmux_attach_or_switch_window()
     [[ -t 0 && -t 1 ]] && has_tty=true
 
     if $has_tty; then
-        tmux attach-session -t "=$session:$win_index"
+        tmux attach-session -t "$target"
         return 0
     fi
 
@@ -94,7 +94,7 @@ tmux_attach_or_switch_window()
     done < <(tmux list-clients -F "#{client_tty}" 2> /dev/null || true)
 
     if [[ -n $client_tty ]]; then
-        tmux switch-client -c "$client_tty" -t "=$session:$win_index"
+        tmux switch-client -c "$client_tty" -t "$target"
         return 0
     fi
 
@@ -116,6 +116,7 @@ open_worktree_in_session()
     fi
 
     echo "No existing window found for worktree. Creating a new one..."
-    tmux new-window -a -t "=$session" -n "$(basename "$worktree_path")" -c "$worktree_path"
-    tmux_attach_or_switch "$session"
+    local new_win
+    new_win=$(tmux new-window -a -t "=$session" -n "$(basename "$worktree_path")" -c "$worktree_path" -P -F "#{window_index}")
+    tmux_attach_or_switch_window "$session" "$new_win"
 }
