@@ -340,5 +340,5 @@ cmd_clone_bare()
         info "Success! Setup complete in: $folder_name"
         echo "Your repo data is hidden in .bare/"
         echo "Your active worktree is in ./$default_branch"
-    )
+    ) || return $?
 }
