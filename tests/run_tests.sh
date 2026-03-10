@@ -151,6 +151,22 @@ parse_config
 multi_on_create=$(get_project_prop "multi" "on_create")
 assert_contains "continuation line appended" "$multi_on_create" "nvim ."
 assert_contains "first line preserved" "$multi_on_create" "tmux split-window -v"
+echo -e "${BOLD}test: get_txs_setting$RESET"
+cat > "$TMPDIR_TEST/config" << 'CONF'
+# txs settings
+auto_add_clone = true
+some_other = hello world
+CONF
+TXS_SETTINGS_FILE="$TMPDIR_TEST/config"
+setting_val=$(get_txs_setting "auto_add_clone")
+assert_eq "reads auto_add_clone setting" "true" "$setting_val"
+setting_val=$(get_txs_setting "some_other")
+assert_eq "reads some_other setting" "hello world" "$setting_val"
+setting_val=$(get_txs_setting "nonexistent")
+assert_eq "missing key returns empty" "" "$setting_val"
+TXS_SETTINGS_FILE="$TMPDIR_TEST/nonexistent_file"
+setting_val=$(get_txs_setting "auto_add_clone")
+assert_eq "missing settings file returns empty" "" "$setting_val"
 echo ""
 echo -e "${BOLD}Results: $PASS/$TOTAL passed, $FAIL failed$RESET"
 if [[ $FAIL -gt 0 ]]; then

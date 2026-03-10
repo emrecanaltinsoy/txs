@@ -3,6 +3,7 @@
 TXS_VERSION="0.3.1"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/txs"
 CONFIG_FILE="$CONFIG_DIR/projects.conf"
+TXS_SETTINGS_FILE="$CONFIG_DIR/config"
 declare -gA PROJECT_PATH
 declare -gA PROJECT_SESSION_NAME
 declare -gA PROJECT_ON_CREATE
@@ -127,4 +128,25 @@ expand_path()
 {
     local path="$1"
     echo "${path/#\~/$HOME}"
+}
+get_txs_setting()
+{
+    local key="$1"
+    [[ -f $TXS_SETTINGS_FILE ]] || return 0
+    local line
+    while IFS= read -r line; do
+        line=$(_trim "$line")
+        [[ -z $line || $line == \#* ]] && continue
+        if [[ $line =~ ^([a-zA-Z_]+)[[:space:]]*=[[:space:]]*(.*)$ ]]; then
+            local k v
+            k="${BASH_REMATCH[1]}"
+            v="${BASH_REMATCH[2]}"
+            v="${v%%#*}"
+            v=$(_trim "$v")
+            if [[ $k == "$key" ]]; then
+                echo "$v"
+                return 0
+            fi
+        fi
+    done < "$TXS_SETTINGS_FILE"
 }

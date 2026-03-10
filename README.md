@@ -118,6 +118,20 @@ on_create = tmux split-window -v -l 20
 The `[DEFAULT]` section provides fallback values for all projects. Dots in
 session names are automatically replaced with dashes.
 
+### Settings file
+
+Tool-level settings live in `$HOME/.config/txs/config` (separate from the
+project config). Simple `key = value` format:
+
+```ini
+# Auto-add repos cloned with 'txs clone-bare' to the project config
+auto_add_clone = true
+```
+
+| Setting          | Default | Description                                              |
+|------------------|---------|----------------------------------------------------------|
+| `auto_add_clone` | `true`  | Automatically add cloned bare repos to `projects.conf`   |
+
 ## Usage
 
 ```

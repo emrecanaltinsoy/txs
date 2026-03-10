@@ -18,11 +18,11 @@ fi
 # Standalone script -- cannot source lib/log.sh before cloning the repo
 info()
 {
-    printf '%b %s\n' "${GREEN}>" "${RESET}$*"
+    printf '%b %b\n' "${GREEN}>" "${RESET}$*"
 }
 error()
 {
-    printf '%b %s\n' "${RED}Error:" "${RESET}$*" >&2
+    printf '%b %b\n' "${RED}Error:" "${RESET}$*" >&2
 }
 for cmd in git make install; do
     if ! command -v "$cmd" &> /dev/null; then

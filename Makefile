@@ -22,14 +22,14 @@ install:
 	install -Dm644 completions/txs.bash "$(SHAREDIR)/txs.bash"
 	install -Dm644 completions/txs.zsh "$(SHAREDIR)/txs.zsh"
 	@if [ ! -f "$(CONFDIR)/projects.conf" ]; then \
-		install -Dm644 projects.conf.example "$(CONFDIR)/projects.conf"; \
+		install -Dm644 examples/projects.conf.example "$(CONFDIR)/projects.conf"; \
 		echo "Installed example config to $(CONFDIR)/projects.conf"; \
 	elif [ -t 0 ]; then \
 		printf "Config already exists at $(CONFDIR)/projects.conf. Overwrite? [y/N] "; \
 		read -r ans; \
 		case "$$ans" in \
 			[yY]*) \
-				install -Dm644 projects.conf.example "$(CONFDIR)/projects.conf"; \
+				install -Dm644 examples/projects.conf.example "$(CONFDIR)/projects.conf"; \
 				echo "Overwritten config at $(CONFDIR)/projects.conf"; \
 				;; \
 			*) \
@@ -38,6 +38,12 @@ install:
 		esac; \
 	else \
 		echo "Kept existing config at $(CONFDIR)/projects.conf"; \
+	fi
+	@if [ ! -f "$(CONFDIR)/config" ]; then \
+		install -Dm644 examples/config.example "$(CONFDIR)/config"; \
+		echo "Installed example settings to $(CONFDIR)/config"; \
+	else \
+		echo "Kept existing settings at $(CONFDIR)/config"; \
 	fi
 	@echo ""
 	@echo "Installed txs to $(BINDIR)/txs"

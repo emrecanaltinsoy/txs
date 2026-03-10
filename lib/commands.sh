@@ -382,6 +382,14 @@ CONFIG FILE:
 
     Each continuation line is sent as a separate tmux send-keys command.
 
+SETTINGS FILE:
+    $TXS_SETTINGS_FILE
+
+    Simple key = value format for tool-level settings:
+
+        # Auto-add cloned repos to project config
+        auto_add_clone = true
+
 CONTEXT:
     Works both inside and outside tmux:
       - Outside: creates/attaches sessions directly
@@ -445,9 +453,18 @@ cmd_clone_bare()
             git worktree add -b "$default_branch" "$default_branch" "origin/$default_branch"
         fi
 
+        git branch --set-upstream-to="origin/$default_branch" "$default_branch"
+
         echo "---------------------------------------------------"
         info "Success! Setup complete in: $folder_name"
         echo "Your repo data is hidden in .bare/"
         echo "Your active worktree is in ./$default_branch"
     ) || return $?
+
+    # Auto-add to project config if enabled
+    local auto_add
+    auto_add=$(get_txs_setting "auto_add_clone")
+    if [[ $auto_add == "true" ]]; then
+        cmd_add "$folder_name"
+    fi
 }
