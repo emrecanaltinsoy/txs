@@ -6,7 +6,6 @@ cmd_interactive()
         echo "Install fzf or use subcommands directly (e.g., txs ls)"
         return 1
     fi
-    check_relaunch_in_popup && return 0
     parse_config || return 1
 
     local active_sessions
@@ -91,11 +90,6 @@ cmd_interactive()
         return 0
     fi
 
-    local fzf_height_opt=()
-    if [[ -z ${TXS_POPUP:-} ]]; then
-        fzf_height_opt=(--height=50%)
-    fi
-
     local header="* = active  + = project | ESC to cancel"
     local selected
     selected=$(printf '%s\n' "${entries[@]}" | fzf \
@@ -103,7 +97,7 @@ cmd_interactive()
         --with-nth=5 \
         --header="$header" \
         --prompt="session> " \
-        "${fzf_height_opt[@]}" \
+        --height=50% \
         --layout=reverse \
         --border \
         --ansi) || return 0

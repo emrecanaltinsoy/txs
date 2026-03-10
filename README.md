@@ -11,8 +11,7 @@ Inspired by [ThePrimeagen's tmux-sessionizer](https://github.com/ThePrimeagen/tm
 
 txs lets you define your projects in a simple INI-style configuration file and
 quickly create, switch to, list, or kill tmux sessions. It includes an
-interactive fuzzy-finder picker powered by fzf, with automatic tmux popup
-support.
+interactive fuzzy-finder picker powered by fzf.
 
 It also includes a helper command to clone repositories as bare repos with a
 default worktree so you can keep using Git worktrees cleanly.
@@ -20,7 +19,7 @@ default worktree so you can keep using Git worktrees cleanly.
 ## Features
 
 - **Interactive session picker** -- fuzzy-find and switch between projects with fzf
-- **Tmux popup support** -- automatically launches in a floating tmux popup when run inside tmux
+- **Bare repo worktree support** -- clone, list, and switch between worktrees
 - **INI-style configuration** -- define projects with paths, custom session names, and on-create commands
 - **Multi-line on_create** -- run multiple commands when a session is first created
 - **Context-aware** -- works both inside and outside tmux
@@ -178,14 +177,6 @@ txs clone-bare git@github.com:org/repo.git
 This creates `./repo` (or your custom folder name), stores git data in
 `./repo/.bare`, and checks out the default branch into `./repo/<branch>`.
 
-### Environment variables
-
-| Variable           | Description                                                                 |
-|--------------------|-----------------------------------------------------------------------------|
-| `TXS_POPUP`        | Set internally when running inside a tmux popup. Set to any non-empty value to prevent txs from launching in a popup. |
-| `TXS_POPUP_WIDTH`  | Width of tmux popup (default: 80%)                                          |
-| `TXS_POPUP_HEIGHT` | Height of tmux popup (default: 70%)                                         |
-
 ## Keybindings
 
 I mainly access txs through keybindings in tmux and Neovim rather than running
@@ -193,16 +184,28 @@ it directly from the shell. However, you can use it in any terminal. Here are so
 
 ### tmux
 
+Launch in a floating popup:
+
 ```sh
-bind-key -r a run-shell "txs"
+bind-key C-s display-popup -E -w 80% -h 70% "txs"
+```
+
+Or run inline (no popup):
+
+```sh
+bind-key C-s run-shell "txs"
 ```
 
 ### Neovim
 
-If not inside tmux, this keymap will not work, but it won't cause any issues either. If inside tmux, it will open the tmux popup with the interactive session picker.
+If inside tmux, this keymap opens txs in a tmux popup. Outside tmux it has no effect.
 
 ```lua
-vim.keymap.set({ "n" }, "<leader>tt", "<cmd>silent !txs<cr>", { desc = "Start txs" })
+vim.keymap.set("n", "<leader>tt", function()
+  if vim.env.TMUX then
+    vim.fn.system('tmux display-popup -E -w 80% -h 70% "txs"')
+  end
+end, { desc = "Start txs" })
 ```
 
 ## Pairing with tmuxifier

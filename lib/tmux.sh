@@ -1,26 +1,8 @@
 # Sourced by bin/txs -- not meant to be executed directly
 
-TXS_POPUP_WIDTH="${TXS_POPUP_WIDTH:-80%}"
-TXS_POPUP_HEIGHT="${TXS_POPUP_HEIGHT:-70%}"
-
 is_inside_tmux()
 {
     [[ -n ${TMUX:-} ]]
-}
-check_relaunch_in_popup()
-{
-    if is_inside_tmux && [[ -z ${TXS_POPUP:-} ]]; then
-        local self cmd
-        self="${TXS_ROOT%/lib/txs}/bin/txs"
-        cmd="TXS_POPUP=1 bash $(printf '%q' "$self")"
-        local arg
-        for arg in "$@"; do
-            [[ -n $arg ]] && cmd+=" $(printf '%q' "$arg")"
-        done
-        tmux display-popup -E -w "$TXS_POPUP_WIDTH" -h "$TXS_POPUP_HEIGHT" "$cmd"
-        return 0
-    fi
-    return 1
 }
 tmux_session_exists()
 {

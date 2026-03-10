@@ -150,17 +150,10 @@ cmd_attach()
             return 0
         fi
 
-        check_relaunch_in_popup "attach" "$project" && return 0
-
         if ! command -v fzf &> /dev/null; then
             # No fzf, just switch to session
             tmux_attach_or_switch "$session_name"
             return 0
-        fi
-
-        local fzf_height_opt=()
-        if [[ -z ${TXS_POPUP:-} ]]; then
-            fzf_height_opt=(--height=50%)
         fi
 
         local selected
@@ -169,7 +162,7 @@ cmd_attach()
             --with-nth=2 \
             --header="Pick a worktree for $project (ESC to cancel)" \
             --prompt="worktree> " \
-            "${fzf_height_opt[@]}" \
+            --height=50% \
             --layout=reverse \
             --border \
             --ansi) || {
@@ -201,22 +194,15 @@ cmd_kill()
             return 0
         fi
 
-        check_relaunch_in_popup "kill" && return 0
-
         if ! command -v fzf &> /dev/null; then
             error "fzf is required for interactive kill. Usage: txs kill <session-name>"
             return 1
         fi
 
-        local fzf_height_opt=()
-        if [[ -z ${TXS_POPUP:-} ]]; then
-            fzf_height_opt=(--height=50%)
-        fi
-
         target=$(printf '%s\n' "$sessions" | fzf \
             --header="Pick a session to kill (ESC to cancel)" \
             --prompt="kill> " \
-            "${fzf_height_opt[@]}" \
+            --height=50% \
             --layout=reverse \
             --border \
             --ansi) || return 0
