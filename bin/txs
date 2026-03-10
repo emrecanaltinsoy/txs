@@ -86,7 +86,7 @@ main() {
 		cmd_clone_bare "$2" "${3:-}"
 		;;
 	config)
-		cmd_config
+		cmd_config "${2:-}"
 		;;
 	help | --help | -h)
 		cmd_help

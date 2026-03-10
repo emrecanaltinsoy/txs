@@ -301,12 +301,22 @@ cmd_remove()
 }
 cmd_config()
 {
+    local target="${1:-}"
+    local file
+    case "$target" in
+        settings) file="$TXS_SETTINGS_FILE" ;;
+        projects | "") file="$CONFIG_FILE" ;;
+        *)
+            error "Unknown config target '$target'. Use: projects, settings"
+            return 1
+            ;;
+    esac
     local editor="${EDITOR:-vi}"
-    if [[ ! -f $CONFIG_FILE ]]; then
-        mkdir -p "$(dirname "$CONFIG_FILE")"
-        touch "$CONFIG_FILE"
+    if [[ ! -f $file ]]; then
+        mkdir -p "$(dirname "$file")"
+        touch "$file"
     fi
-    exec "$editor" "$CONFIG_FILE"
+    exec "$editor" "$file"
 }
 cmd_help()
 {
@@ -326,7 +336,7 @@ USAGE:
     txs add [path]               Add a directory to the config (default: .)
     txs remove <name>            Remove a project from the config
     txs clone-bare <url> [name]  Clone a repo as bare + create default worktree
-    txs config                   Open the config file in \$EDITOR
+    txs config [projects|settings] Open a config file in \$EDITOR
 
   Other:
     txs version                  Show version

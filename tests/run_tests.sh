@@ -93,6 +93,10 @@ echo -e "${BOLD}test: ls invalid filter$RESET"
 ls_output=$("$TXS" ls invalid 2>&1) && ec=0 || ec=$?
 assert_exit_code "ls invalid filter exits non-zero" "1" "$ec"
 assert_contains "ls invalid filter shows error" "$ls_output" "Unknown filter"
+echo -e "${BOLD}test: config invalid target$RESET"
+config_output=$("$TXS" config invalid 2>&1) && ec=0 || ec=$?
+assert_exit_code "config invalid target exits non-zero" "1" "$ec"
+assert_contains "config invalid target shows error" "$config_output" "Unknown config target"
 echo -e "${BOLD}test: aliases route correctly$RESET"
 # 'list' should behave like 'ls' (both produce the same output)
 list_output=$("$TXS" list 2>&1) && ec=0 || ec=$?

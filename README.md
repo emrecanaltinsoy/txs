@@ -150,7 +150,7 @@ Project configuration:
   txs add [path]               Add a directory to the config (default: .)
   txs remove <name>            Remove a project from the config
   txs clone-bare <url> [name]  Clone as bare repo + create default branch worktree
-  txs config                   Open the config file in $EDITOR
+  txs config [projects|settings] Open a config file in $EDITOR
 
 Other:
   txs version                  Show version

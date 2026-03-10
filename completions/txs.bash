@@ -34,6 +34,9 @@ _txs() {
 	add | clone-bare)
 		mapfile -t COMPREPLY < <(compgen -d -- "$cur")
 		;;
+	config)
+		mapfile -t COMPREPLY < <(compgen -W "projects settings" -- "$cur")
+		;;
 	remove)
 		mapfile -t COMPREPLY < <(compgen -W "$(_txs_projects)" -- "$cur")
 		;;

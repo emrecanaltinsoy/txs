@@ -52,6 +52,13 @@ _txs() {
 	add | clone-bare)
 		_path_files -/
 		;;
+	config)
+		local -a targets=(
+			'projects:Open project config'
+			'settings:Open txs settings'
+		)
+		_describe 'config file' targets
+		;;
 	remove)
 		local -a projects
 		projects=("${(@f)$(_txs_projects)}")
