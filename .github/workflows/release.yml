@@ -92,7 +92,7 @@ jobs:
           ARCHIVE="txs-${VERSION}.tar.gz"
 
           mkdir -p "txs-${VERSION}"
-          cp -r bin lib completions Makefile LICENSE README.md projects.conf.example "txs-${VERSION}/"
+          cp -r bin lib completions examples Makefile LICENSE README.md "txs-${VERSION}/"
           tar czf "$ARCHIVE" "txs-${VERSION}"
           rm -rf "txs-${VERSION}"
 
