@@ -121,19 +121,28 @@ session names are automatically replaced with dashes.
 ## Usage
 
 ```
-txs                  Interactive fuzzy-finder session picker
-txs create <name>    Create or switch to a session for a project
-txs add [path]       Add a directory to the config (default: current dir)
-txs remove <name>    Remove a project from the config
-txs clone-bare <url> [name]
-                     Clone as bare repo + create default branch worktree
-txs config           Open the config file in $EDITOR
-txs kill <name>      Kill a tmux session
-txs list             List active tmux sessions
-txs worktrees [name] List/switch git worktrees (fuzzy finder when no arg)
-txs projects         List all configured projects and their status
-txs version          Show version
-txs help             Show help
+txs                          Interactive fuzzy-finder session picker
+
+Session management:
+  txs attach [name] [worktree] Attach to a session / open a worktree
+  txs kill [name]              Kill a session (interactive picker when no arg)
+  txs ls [sessions|projects|worktrees]
+                               List sessions, projects, and/or worktrees
+
+Project configuration:
+  txs add [path]               Add a directory to the config (default: .)
+  txs remove <name>            Remove a project from the config
+  txs clone-bare <url> [name]  Clone as bare repo + create default branch worktree
+  txs config                   Open the config file in $EDITOR
+
+Other:
+  txs version                  Show version
+  txs help                     Show help
+
+Aliases:
+  create    -> attach
+  list      -> ls
+  worktrees -> attach
 ```
 
 ### Clone Bare For Worktrees

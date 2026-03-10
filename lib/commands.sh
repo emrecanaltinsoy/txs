@@ -1,5 +1,25 @@
 # Sourced by bin/txs -- not meant to be executed directly
-cmd_list()
+cmd_ls()
+{
+    local filter="${1:-}"
+    case "$filter" in
+        sessions) _ls_sessions ;;
+        projects) _ls_projects ;;
+        worktrees) _ls_worktrees ;;
+        "")
+            _ls_sessions
+            echo ""
+            _ls_projects
+            echo ""
+            _ls_worktrees
+            ;;
+        *)
+            error "Unknown filter '$filter'. Use: sessions, projects, worktrees"
+            return 1
+            ;;
+    esac
+}
+_ls_sessions()
 {
     local sessions
     sessions=$(get_active_sessions)
@@ -8,64 +28,14 @@ cmd_list()
         return 0
     fi
     fetch_session_windows
-    echo -e "${BOLD}Active tmux sessions:$RESET"
+    echo -e "${BOLD}Active sessions:$RESET"
     echo ""
     while IFS= read -r session; do
         local windows="${SESSION_WINDOWS[$session]:-}"
         echo -e "  $GREEN$session$RESET  ${DIM}[$windows]$RESET"
     done <<< "$sessions"
 }
-cmd_worktrees()
-{
-    local selector="${1:-}"
-    local worktrees
-    worktrees=$(get_active_worktrees)
-
-    if [[ -z $worktrees ]]; then
-        echo -e "${DIM}No worktrees found.$RESET"
-        return 0
-    fi
-
-    if [[ -n $selector ]]; then
-        local session wt_path label
-        while IFS=$'\t' read -r session wt_path label; do
-            if [[ $selector == "$label" || $selector == "$(basename "$wt_path")" ]]; then
-                open_worktree_in_session "$session" "$wt_path"
-                return $?
-            fi
-        done <<< "$worktrees"
-
-        error "No worktree found: $selector"
-        return 1
-    fi
-
-    check_relaunch_in_popup "worktrees" && return 0
-
-    if ! command -v fzf &> /dev/null; then
-        local session wt_path label
-        while IFS=$'\t' read -r session wt_path label; do
-            echo -e "  $GREEN$label$RESET"
-        done <<< "$worktrees"
-        return 0
-    fi
-
-    local selected
-    selected=$(printf '%s\n' "$worktrees" | fzf \
-        --delimiter=$'\t' \
-        --with-nth=3 \
-        --header="Pick a worktree (ESC to cancel)" \
-        --prompt="worktree> " \
-        --layout=reverse \
-        --border \
-        --ansi) || return 0
-
-    local chosen_session chosen_path
-    IFS=$'\t' read -r chosen_session chosen_path _ <<< "$selected"
-    [[ -z $chosen_session || -z $chosen_path ]] && return 0
-
-    open_worktree_in_session "$chosen_session" "$chosen_path"
-}
-cmd_projects()
+_ls_projects()
 {
     parse_config || return 1
     if [[ ${#PROJECT_ORDER[@]} -eq 0 ]]; then
@@ -77,36 +47,51 @@ cmd_projects()
     echo -e "${BOLD}Configured projects:$RESET"
     echo ""
     for project in "${PROJECT_ORDER[@]}"; do
-        local path session_name on_create status
+        local path session_name status
         path=$(get_project_prop "$project" "path")
         session_name=$(get_project_prop "$project" "session_name")
-        on_create=$(get_project_prop "$project" "on_create")
         if echo "$active_sessions" | grep -Fqx "$session_name"; then
             status="${GREEN}active$RESET"
         else
             status="${DIM}inactive$RESET"
         fi
-        echo -e "  $CYAN$project$RESET  [$status]"
-        echo -e "    path:    $path"
-        [[ $session_name != "$project" ]] && echo -e "    session: $session_name"
-        if [[ -n $on_create ]]; then
-            local first=true
-            while IFS= read -r cmd; do
-                [[ -z $cmd ]] && continue
-                if $first; then
-                    echo -e "    run:     $cmd"
-                    first=false
-                else
-                    echo -e "             $cmd"
-                fi
-            done <<< "$on_create"
-        fi
-        echo ""
+        echo -e "  $CYAN$project$RESET  [$status]  $path"
     done
 }
-cmd_create()
+_ls_worktrees()
 {
-    local project="$1"
+    parse_config || return 1
+    local found=false
+    for project in "${PROJECT_ORDER[@]}"; do
+        local path
+        path=$(expand_path "$(get_project_prop "$project" "path")")
+        [[ -d $path ]] || continue
+        local wt_path wt_name
+        while IFS=$'\t' read -r wt_path wt_name; do
+            [[ -z $wt_path ]] && continue
+            if [[ $found == false ]]; then
+                echo -e "${BOLD}Worktrees:$RESET"
+                echo ""
+                found=true
+            fi
+            echo -e "  $CYAN$project$RESET - $wt_name  ${DIM}$wt_path$RESET"
+        done < <(get_project_worktrees "$path" | sort -t$'\t' -k2)
+    done
+    if [[ $found == false ]]; then
+        echo -e "${DIM}No worktrees found.$RESET"
+    fi
+}
+cmd_attach()
+{
+    local project="${1:-}"
+    local worktree_selector="${2:-}"
+
+    # No args → interactive picker
+    if [[ -z $project ]]; then
+        cmd_interactive
+        return $?
+    fi
+
     parse_config || return 1
     if [[ -z ${PROJECT_PATH[$project]:-} ]]; then
         error "Project '$project' not found in config."
@@ -124,31 +109,142 @@ cmd_create()
         error "Directory does not exist: $path"
         return 1
     fi
-    if tmux_session_exists "$session_name"; then
-        echo -e "${DIM}Session '$session_name' already exists. Switching...$RESET"
-        tmux_attach_or_switch "$session_name"
-        return 0
+
+    # Ensure session exists (create if needed)
+    if ! tmux_session_exists "$session_name"; then
+        echo -e "Creating session $GREEN$session_name$RESET at $path..."
+        if ! tmux new-session -d -s "$session_name" -c "$path"; then
+            error "Failed to create tmux session '$session_name'"
+            return 1
+        fi
+        if [[ -n $on_create ]]; then
+            while IFS= read -r cmd; do
+                [[ -z $cmd ]] && continue
+                tmux send-keys -t "=$session_name:" "$cmd" Enter
+            done <<< "$on_create"
+        fi
     fi
-    echo -e "Creating session $GREEN$session_name$RESET at $path..."
-    if ! tmux new-session -d -s "$session_name" -c "$path"; then
-        error "Failed to create tmux session '$session_name'"
-        return 1
+
+    # For bare repos, handle worktree selection
+    if is_bare_repo "$path"; then
+        if [[ -n $worktree_selector ]]; then
+            # Direct worktree by basename
+            local wt_path wt_name
+            while IFS=$'\t' read -r wt_path wt_name; do
+                [[ -z $wt_path ]] && continue
+                if [[ $wt_name == "$worktree_selector" ]]; then
+                    open_worktree_in_session "$session_name" "$wt_path"
+                    return $?
+                fi
+            done < <(get_project_worktrees "$path")
+            error "Worktree '$worktree_selector' not found in project '$project'."
+            return 1
+        fi
+
+        # Show fzf worktree picker
+        local worktrees
+        worktrees=$(get_project_worktrees "$path" | sort -t$'\t' -k2)
+        if [[ -z $worktrees ]]; then
+            # No worktrees, just switch to the session
+            tmux_attach_or_switch "$session_name"
+            return 0
+        fi
+
+        check_relaunch_in_popup "attach" "$project" && return 0
+
+        if ! command -v fzf &> /dev/null; then
+            # No fzf, just switch to session
+            tmux_attach_or_switch "$session_name"
+            return 0
+        fi
+
+        local fzf_height_opt=()
+        if [[ -z ${TXS_POPUP:-} ]]; then
+            fzf_height_opt=(--height=50%)
+        fi
+
+        local selected
+        selected=$(printf '%s\n' "$worktrees" | fzf \
+            --delimiter=$'\t' \
+            --with-nth=2 \
+            --header="Pick a worktree for $project (ESC to cancel)" \
+            --prompt="worktree> " \
+            "${fzf_height_opt[@]}" \
+            --layout=reverse \
+            --border \
+            --ansi) || {
+            # ESC pressed, just switch to session
+            tmux_attach_or_switch "$session_name"
+            return 0
+        }
+
+        local chosen_path
+        IFS=$'\t' read -r chosen_path _ <<< "$selected"
+        [[ -z $chosen_path ]] && return 0
+        open_worktree_in_session "$session_name" "$chosen_path"
+        return $?
     fi
-    if [[ -n $on_create ]]; then
-        while IFS= read -r cmd; do
-            [[ -z $cmd ]] && continue
-            tmux send-keys -t "=$session_name:" "$cmd" Enter
-        done <<< "$on_create"
-    fi
+
+    # Normal / non-git project: just switch to the session
     tmux_attach_or_switch "$session_name"
 }
 cmd_kill()
 {
-    local target="$1"
+    local target="${1:-}"
+
+    if [[ -z $target ]]; then
+        # Interactive picker
+        local sessions
+        sessions=$(get_active_sessions)
+        if [[ -z $sessions ]]; then
+            echo -e "${DIM}No active tmux sessions.$RESET"
+            return 0
+        fi
+
+        check_relaunch_in_popup "kill" && return 0
+
+        if ! command -v fzf &> /dev/null; then
+            error "fzf is required for interactive kill. Usage: txs kill <session-name>"
+            return 1
+        fi
+
+        local fzf_height_opt=()
+        if [[ -z ${TXS_POPUP:-} ]]; then
+            fzf_height_opt=(--height=50%)
+        fi
+
+        target=$(printf '%s\n' "$sessions" | fzf \
+            --header="Pick a session to kill (ESC to cancel)" \
+            --prompt="kill> " \
+            "${fzf_height_opt[@]}" \
+            --layout=reverse \
+            --border \
+            --ansi) || return 0
+
+        [[ -z $target ]] && return 0
+    fi
+
     if ! tmux_session_exists "$target"; then
         error "Session '$target' does not exist."
         return 1
     fi
+
+    # If killing the current session from inside tmux, switch away first
+    if is_inside_tmux; then
+        local current_session
+        current_session=$(tmux display-message -p "#{session_name}" 2> /dev/null || true)
+        if [[ $current_session == "$target" ]]; then
+            local remaining
+            remaining=$(get_active_sessions | grep -Fxv "$target" || true)
+            if [[ -n $remaining ]]; then
+                # Switch parent client to the first remaining session
+                local next
+                next=$(head -n 1 <<< "$remaining")
+                tmux switch-client -t "=$next" 2> /dev/null || true
+            fi
+        fi
+    fi
+
     tmux kill-session -t "=$target"
     echo -e "Killed session $GREEN$target$RESET."
 }
@@ -232,24 +328,36 @@ cmd_help()
 txs - Manage tmux sessions from predefined project directories
 
 USAGE:
-    txs                  Interactive fzf picker
-    txs list             List active tmux sessions
-    txs worktrees [name] List/switch git worktrees (fuzzy finder when no arg)
-    txs projects         List configured projects
-    txs create <name>    Create/attach session for a project
-    txs add [path]       Add a directory to the config (default: .)
-    txs remove <name>    Remove a project from the config
-    txs clone-bare <url> [name]
-                         Clone a repo as bare + create default worktree
-    txs config           Open the config file in \$EDITOR
-    txs kill <name>      Kill a tmux session
-    txs help             Show this help message
-    txs version          Show version
+    txs                          Interactive picker (sessions, worktrees, projects)
+
+  Session management:
+    txs attach [name] [worktree] Attach to a session / open a worktree
+    txs kill [name]              Kill a session (interactive picker when no arg)
+    txs ls [sessions|projects|worktrees]
+                                 List sessions, projects, and/or worktrees
+
+  Project configuration:
+    txs add [path]               Add a directory to the config (default: .)
+    txs remove <name>            Remove a project from the config
+    txs clone-bare <url> [name]  Clone a repo as bare + create default worktree
+    txs config                   Open the config file in \$EDITOR
+
+  Other:
+    txs version                  Show version
+    txs help                     Show this help
+
+ALIASES:
+    create    -> attach
+    list      -> ls
+    worktrees -> attach
 
 INTERACTIVE MODE:
     When run with no arguments, an fzf picker shows:
-      * = active sessions (select to switch)
+      * = active sessions / worktrees with open windows
+        = worktrees in active sessions (no window yet)
       + = configured projects (select to create & attach)
+
+    For bare repos, each worktree is listed as a separate entry.
 
 CONFIG FILE:
     $CONFIG_FILE

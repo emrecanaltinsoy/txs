@@ -76,23 +76,28 @@ assert_contains "txs -v prints version string" "$("$TXS" -v 2>&1 || true)" "$TXS
 echo -e "${BOLD}test: help$RESET"
 help_output=$("$TXS" help 2>&1) || true
 assert_contains "help mentions USAGE" "$help_output" "USAGE"
-assert_contains "help mentions list command" "$help_output" "txs list"
-assert_contains "help mentions worktrees command" "$help_output" "txs worktrees"
-assert_contains "help mentions create command" "$help_output" "txs create"
+assert_contains "help mentions attach command" "$help_output" "txs attach"
+assert_contains "help mentions ls command" "$help_output" "txs ls"
 assert_contains "help mentions kill command" "$help_output" "txs kill"
 assert_contains "help mentions clone-bare command" "$help_output" "txs clone-bare"
+assert_contains "help shows Session management group" "$help_output" "Session management:"
+assert_contains "help shows Project configuration group" "$help_output" "Project configuration:"
+assert_contains "help shows aliases section" "$help_output" "ALIASES:"
+assert_contains "help shows create alias" "$help_output" "create    -> attach"
+assert_contains "help shows list alias" "$help_output" "list      -> ls"
 echo -e "${BOLD}test: unknown command$RESET"
 unknown_output=$("$TXS" nonexistent 2>&1) && ec=0 || ec=$?
 assert_exit_code "unknown command exits non-zero" "1" "$ec"
 assert_contains "unknown command shows error" "$unknown_output" "Unknown command"
-echo -e "${BOLD}test: create missing argument$RESET"
-create_output=$("$TXS" create 2>&1) && ec=0 || ec=$?
-assert_exit_code "create without arg exits non-zero" "1" "$ec"
-assert_contains "create without arg shows error" "$create_output" "Missing project name"
-echo -e "${BOLD}test: kill missing argument$RESET"
-kill_output=$("$TXS" kill 2>&1) && ec=0 || ec=$?
-assert_exit_code "kill without arg exits non-zero" "1" "$ec"
-assert_contains "kill without arg shows error" "$kill_output" "Missing session name"
+echo -e "${BOLD}test: ls invalid filter$RESET"
+ls_output=$("$TXS" ls invalid 2>&1) && ec=0 || ec=$?
+assert_exit_code "ls invalid filter exits non-zero" "1" "$ec"
+assert_contains "ls invalid filter shows error" "$ls_output" "Unknown filter"
+echo -e "${BOLD}test: aliases route correctly$RESET"
+# 'list' should behave like 'ls' (both produce the same output)
+list_output=$("$TXS" list 2>&1) && ec=0 || ec=$?
+ls_output=$("$TXS" ls 2>&1) && ec=0 || ec=$?
+assert_eq "list and ls produce same output" "$list_output" "$ls_output"
 echo -e "${BOLD}test: config parser$RESET"
 TMPDIR_TEST=$(mktemp -d)
 cat > "$TMPDIR_TEST/projects.conf" << 'CONF'

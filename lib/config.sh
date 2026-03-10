@@ -22,6 +22,12 @@ parse_config()
         echo "Create it with example projects, or run: txs help"
         return 1
     fi
+    # Reset state so repeated calls don't duplicate entries
+    PROJECT_PATH=()
+    PROJECT_SESSION_NAME=()
+    PROJECT_ON_CREATE=()
+    PROJECT_ORDER=()
+    DEFAULTS=()
     local current_section=""
     local last_key=""
     local line_num=0

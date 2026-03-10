@@ -13,13 +13,13 @@ else
 fi
 info()
 {
-    printf '%b %s\n' "${GREEN}>" "${RESET}$*"
+    printf '%b %b\n' "${GREEN}>" "${RESET}$*"
 }
 warn()
 {
-    printf '%b %s\n' "${YELLOW}Warning:" "${RESET}$*" >&2
+    printf '%b %b\n' "${YELLOW}Warning:" "${RESET}$*" >&2
 }
 error()
 {
-    printf '%b %s\n' "${RED}Error:" "${RESET}$*" >&2
+    printf '%b %b\n' "${RED}Error:" "${RESET}$*" >&2
 }

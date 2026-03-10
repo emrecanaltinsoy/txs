@@ -1,5 +1,43 @@
 # Sourced by bin/txs -- not meant to be executed directly
 
+is_bare_repo()
+{
+    local path="$1"
+    # Our clone-bare layout: .bare/ directory with .git file pointing to it
+    if [[ -d "$path/.bare" ]]; then
+        return 0
+    fi
+    # Standard bare repo check
+    if git -C "$path" rev-parse --is-bare-repository 2> /dev/null | grep -q true; then
+        return 0
+    fi
+    return 1
+}
+
+get_project_worktrees()
+{
+    local path="$1"
+    is_bare_repo "$path" || return 0
+
+    local line wt_path is_bare
+    wt_path=""
+    is_bare=false
+    while IFS= read -r line; do
+        if [[ -z $line ]]; then
+            if [[ -n $wt_path && $is_bare == false ]]; then
+                printf '%s\t%s\n' "$wt_path" "$(basename "$wt_path")"
+            fi
+            wt_path=""
+            is_bare=false
+            continue
+        fi
+        case "$line" in
+            worktree\ *) wt_path="${line#worktree }" ;;
+            bare) is_bare=true ;;
+        esac
+    done < <(git -C "$path" worktree list --porcelain 2> /dev/null || true)
+}
+
 repo_name_from_url()
 {
     local url="$1"
