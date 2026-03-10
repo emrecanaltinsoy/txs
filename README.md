@@ -123,13 +123,17 @@ Tool-level settings live in `$HOME/.config/txs/config` (separate from the
 project config). Simple `key = value` format:
 
 ```ini
-# Auto-add repos cloned with 'txs clone-bare' to the project config
 auto_add_clone = true
+fzf_height = 50%
 ```
 
 | Setting          | Default | Description                                              |
 |------------------|---------|----------------------------------------------------------|
 | `auto_add_clone` | `true`  | Automatically add cloned bare repos to `projects.conf`   |
+| `fzf_height`     | `50%`   | Height of fzf picker (percentage or line count)          |
+
+For additional fzf customization (colors, keybindings, layout, etc.), use the
+`FZF_DEFAULT_OPTS` environment variable. See `man fzf` for available options.
 
 ## Usage
 

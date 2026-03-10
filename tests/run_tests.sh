@@ -167,6 +167,17 @@ assert_eq "missing key returns empty" "" "$setting_val"
 TXS_SETTINGS_FILE="$TMPDIR_TEST/nonexistent_file"
 setting_val=$(get_txs_setting "auto_add_clone")
 assert_eq "missing settings file returns empty" "" "$setting_val"
+echo -e "${BOLD}test: fzf_height setting$RESET"
+cat > "$TMPDIR_TEST/config" << 'CONF'
+fzf_height = 80%
+CONF
+TXS_SETTINGS_FILE="$TMPDIR_TEST/config"
+fzf_h=$(get_txs_setting "fzf_height")
+assert_eq "reads fzf_height from settings" "80%" "$fzf_h"
+TXS_SETTINGS_FILE="$TMPDIR_TEST/nonexistent_file"
+fzf_h=$(get_txs_setting "fzf_height")
+_default="${fzf_h:-50%}"
+assert_eq "fzf_height defaults to 50% when missing" "50%" "$_default"
 echo ""
 echo -e "${BOLD}Results: $PASS/$TOTAL passed, $FAIL failed$RESET"
 if [[ $FAIL -gt 0 ]]; then

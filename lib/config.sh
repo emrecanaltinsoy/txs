@@ -150,3 +150,8 @@ get_txs_setting()
         fi
     done < "$TXS_SETTINGS_FILE"
 }
+# Resolve settings that are used in hot paths (fzf calls)
+_fzf_height=$(get_txs_setting "fzf_height")
+# shellcheck disable=SC2034  # used by sourcing scripts
+TXS_FZF_HEIGHT="${_fzf_height:-50%}"
+unset _fzf_height

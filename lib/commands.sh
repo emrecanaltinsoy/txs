@@ -162,7 +162,7 @@ cmd_attach()
             --with-nth=2 \
             --header="Pick a worktree for $project (ESC to cancel)" \
             --prompt="worktree> " \
-            --height=50% \
+            --height="$TXS_FZF_HEIGHT" \
             --layout=reverse \
             --border \
             --ansi) || {
@@ -202,7 +202,7 @@ cmd_kill()
         target=$(printf '%s\n' "$sessions" | fzf \
             --header="Pick a session to kill (ESC to cancel)" \
             --prompt="kill> " \
-            --height=50% \
+            --height="$TXS_FZF_HEIGHT" \
             --layout=reverse \
             --border \
             --ansi) || return 0
@@ -373,8 +373,10 @@ SETTINGS FILE:
 
     Simple key = value format for tool-level settings:
 
-        # Auto-add cloned repos to project config
-        auto_add_clone = true
+        auto_add_clone = true   # Add cloned repos to project config
+        fzf_height = 50%        # Height of fzf picker
+
+    For additional fzf customization, use the FZF_DEFAULT_OPTS env var.
 
 CONTEXT:
     Works both inside and outside tmux:

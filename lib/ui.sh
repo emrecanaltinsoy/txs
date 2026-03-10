@@ -97,7 +97,7 @@ cmd_interactive()
         --with-nth=5 \
         --header="$header" \
         --prompt="session> " \
-        --height=50% \
+        --height="$TXS_FZF_HEIGHT" \
         --layout=reverse \
         --border \
         --ansi) || return 0
