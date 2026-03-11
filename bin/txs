@@ -68,7 +68,7 @@ main() {
 	projects)
 		cmd_ls "projects"
 		;;
-	attach | create | worktrees)
+	attach)
 		cmd_attach "${2:-}" "${3:-}"
 		;;
 	kill)

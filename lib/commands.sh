@@ -362,9 +362,7 @@ USAGE:
     txs help                     Show this help
 
 ALIASES:
-    create    -> attach
     list      -> ls
-    worktrees -> attach
 
 INTERACTIVE MODE:
     When run with no arguments, an fzf picker shows:

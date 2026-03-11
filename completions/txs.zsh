@@ -36,7 +36,7 @@ _txs() {
 	fi
 
 	case "${words[2]}" in
-	attach | create | worktrees)
+	attach)
 		local -a projects
 		projects=("${(@f)$(_txs_projects)}")
 		[[ ${#projects[@]} -gt 0 ]] && _describe 'project' projects

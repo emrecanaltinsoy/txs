@@ -19,13 +19,13 @@ _txs() {
 	# Completing the subcommand (first argument)
 	if [[ $COMP_CWORD -eq 1 ]]; then
 		# Primary commands + hidden aliases
-		mapfile -t COMPREPLY < <(compgen -W "attach ls kill add remove clone-bare config help version create list worktrees sessions projects" -- "$cur")
+		mapfile -t COMPREPLY < <(compgen -W "attach ls kill add remove clone-bare config help version list sessions projects" -- "$cur")
 		return
 	fi
 
 	# Completing arguments to subcommands
 	case "$prev" in
-	attach | create | worktrees)
+	attach)
 		mapfile -t COMPREPLY < <(compgen -W "$(_txs_projects)" -- "$cur")
 		;;
 	ls | list)

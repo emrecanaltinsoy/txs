@@ -83,7 +83,6 @@ assert_contains "help mentions clone-bare command" "$help_output" "txs clone-bar
 assert_contains "help shows Session management group" "$help_output" "Session management:"
 assert_contains "help shows Project configuration group" "$help_output" "Project configuration:"
 assert_contains "help shows aliases section" "$help_output" "ALIASES:"
-assert_contains "help shows create alias" "$help_output" "create    -> attach"
 assert_contains "help shows list alias" "$help_output" "list      -> ls"
 echo -e "${BOLD}test: unknown command$RESET"
 unknown_output=$("$TXS" nonexistent 2>&1) && ec=0 || ec=$?

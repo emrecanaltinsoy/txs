@@ -157,9 +157,7 @@ Other:
   txs help                     Show help
 
 Aliases:
-  create    -> attach
   list      -> ls
-  worktrees -> attach
 ```
 
 ### Clone Bare For Worktrees
