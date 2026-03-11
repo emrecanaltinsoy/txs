@@ -19,6 +19,9 @@ _txs() {
 			'kill:Kill a session'
 			'ls:List sessions, projects, and/or worktrees'
 		)
+		local -a worktree_cmds=(
+			'wt:Manage worktrees (add, remove, list)'
+		)
 		local -a config_cmds=(
 			'add:Add a directory to the config'
 			'remove:Remove a project from the config'
@@ -30,6 +33,7 @@ _txs() {
 			'version:Show version'
 		)
 		_describe 'session commands' session_cmds
+		_describe 'worktree commands' worktree_cmds
 		_describe 'config commands' config_cmds
 		_describe 'other commands' other_cmds
 		return
@@ -40,6 +44,20 @@ _txs() {
 		local -a projects
 		projects=("${(@f)$(_txs_projects)}")
 		[[ ${#projects[@]} -gt 0 ]] && _describe 'project' projects
+		;;
+	wt)
+		if (( CURRENT == 3 )); then
+			local -a subcmds=(
+				'add:Create a worktree and branch'
+				'remove:Remove a worktree and delete branch'
+				'list:List worktrees'
+			)
+			_describe 'wt subcommand' subcmds
+		elif (( CURRENT >= 4 )); then
+			local -a projects
+			projects=("${(@f)$(_txs_projects)}")
+			[[ ${#projects[@]} -gt 0 ]] && _describe 'project' projects
+		fi
 		;;
 	ls | list)
 		local -a filters=(

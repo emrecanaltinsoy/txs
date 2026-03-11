@@ -146,6 +146,13 @@ Session management:
   txs ls [sessions|projects|worktrees]
                                List sessions, projects, and/or worktrees
 
+Worktree management:
+  txs wt add <branch> [project]
+                               Create a worktree and branch
+  txs wt remove <branch> [project]
+                               Remove a worktree and delete branch
+  txs wt list [project]        List worktrees
+
 Project configuration:
   txs add [path]               Add a directory to the config (default: .)
   txs remove <name>            Remove a project from the config
@@ -178,6 +185,41 @@ txs clone-bare git@github.com:org/repo.git
 
 This creates `./repo` (or your custom folder name), stores git data in
 `./repo/.bare`, and checks out the default branch into `./repo/<branch>`.
+
+### Worktree Management
+
+`txs wt` manages worktrees within bare repo projects. It respects the
+clone-bare folder structure, creating worktrees at the repo root alongside
+existing ones.
+
+```sh
+# Create a worktree (fetches from origin first)
+txs wt add feature-login myproject
+
+# If you're inside a worktree, the project is auto-detected
+cd ~/projects/myproject/main
+txs wt add feature-login
+
+# Remove a worktree and its branch
+txs wt remove feature-login
+
+# Remove the worktree but keep the branch
+txs wt remove --keep-branch feature-login
+
+# List worktrees for a specific project
+txs wt list myproject
+
+# List all worktrees across all projects
+txs wt list
+```
+
+When creating a worktree, txs checks for a matching remote branch first. If
+`origin/<branch>` exists, the local branch is created tracking it. Otherwise a
+new branch is created from HEAD.
+
+When removing, txs automatically kills any tmux window open at the worktree
+path before removing it. The branch is deleted by default; pass `--keep-branch`
+(or `-k`) to keep it.
 
 ## Keybindings
 

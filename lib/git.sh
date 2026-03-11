@@ -38,6 +38,58 @@ get_project_worktrees()
     done < <(git -C "$path" worktree list --porcelain 2> /dev/null || true)
 }
 
+resolve_project_from_cwd()
+{
+    # Find the bare repo root from $PWD (works from any worktree or subdirectory)
+    local bare_root=""
+
+    # Try git first: --git-common-dir returns the shared git dir (e.g. /path/.bare)
+    local common_dir
+    common_dir=$(git rev-parse --git-common-dir 2> /dev/null) || true
+    if [[ -n $common_dir ]]; then
+        # Resolve to absolute path
+        [[ $common_dir != /* ]] && common_dir=$(cd "$common_dir" && pwd -P)
+        # .bare dir is inside the project root
+        if [[ $(basename "$common_dir") == ".bare" ]]; then
+            bare_root=$(dirname "$common_dir")
+        fi
+    fi
+
+    # Fallback: walk up from $PWD looking for .bare/
+    if [[ -z $bare_root ]]; then
+        local dir="$PWD"
+        while [[ $dir != "/" ]]; do
+            if [[ -d "$dir/.bare" ]]; then
+                bare_root="$dir"
+                break
+            fi
+            dir=$(dirname "$dir")
+        done
+    fi
+
+    if [[ -z $bare_root ]]; then
+        error "Not inside a bare repo worktree."
+        return 1
+    fi
+
+    local resolved
+    resolved=$(cd "$bare_root" && pwd -P)
+
+    parse_config || return 1
+    for project in "${PROJECT_ORDER[@]}"; do
+        local project_path
+        project_path=$(expand_path "$(get_project_prop "$project" "path")")
+        # Resolve symlinks for comparison
+        project_path=$(cd "$project_path" && pwd -P) 2> /dev/null || continue
+        if [[ $project_path == "$resolved" ]]; then
+            printf '%s\n' "$project"
+            return 0
+        fi
+    done
+    error "Directory '$resolved' is not a configured project."
+    return 1
+}
+
 repo_name_from_url()
 {
     local url="$1"

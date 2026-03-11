@@ -81,7 +81,11 @@ assert_contains "help mentions ls command" "$help_output" "txs ls"
 assert_contains "help mentions kill command" "$help_output" "txs kill"
 assert_contains "help mentions clone-bare command" "$help_output" "txs clone-bare"
 assert_contains "help shows Session management group" "$help_output" "Session management:"
+assert_contains "help shows Worktree management group" "$help_output" "Worktree management:"
 assert_contains "help shows Project configuration group" "$help_output" "Project configuration:"
+assert_contains "help mentions wt add command" "$help_output" "txs wt add"
+assert_contains "help mentions wt remove command" "$help_output" "txs wt remove"
+assert_contains "help mentions wt list command" "$help_output" "txs wt list"
 assert_contains "help shows aliases section" "$help_output" "ALIASES:"
 assert_contains "help shows list alias" "$help_output" "list      -> ls"
 echo -e "${BOLD}test: unknown command$RESET"
@@ -96,6 +100,18 @@ echo -e "${BOLD}test: config invalid target$RESET"
 config_output=$("$TXS" config invalid 2>&1) && ec=0 || ec=$?
 assert_exit_code "config invalid target exits non-zero" "1" "$ec"
 assert_contains "config invalid target shows error" "$config_output" "Unknown config target"
+echo -e "${BOLD}test: wt invalid subcommand$RESET"
+wt_output=$("$TXS" wt invalid 2>&1) && ec=0 || ec=$?
+assert_exit_code "wt invalid subcommand exits non-zero" "1" "$ec"
+assert_contains "wt invalid subcommand shows error" "$wt_output" "Unknown wt subcommand"
+echo -e "${BOLD}test: wt add missing branch$RESET"
+wt_add_output=$("$TXS" wt add 2>&1) && ec=0 || ec=$?
+assert_exit_code "wt add missing branch exits non-zero" "1" "$ec"
+assert_contains "wt add missing branch shows error" "$wt_add_output" "Missing branch name"
+echo -e "${BOLD}test: wt remove missing branch$RESET"
+wt_rm_output=$("$TXS" wt remove 2>&1) && ec=0 || ec=$?
+assert_exit_code "wt remove missing branch exits non-zero" "1" "$ec"
+assert_contains "wt remove missing branch shows error" "$wt_rm_output" "Missing branch name"
 echo -e "${BOLD}test: aliases route correctly$RESET"
 # 'list' should behave like 'ls' (both produce the same output)
 list_output=$("$TXS" list 2>&1) && ec=0 || ec=$?

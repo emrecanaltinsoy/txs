@@ -19,7 +19,7 @@ _txs() {
 	# Completing the subcommand (first argument)
 	if [[ $COMP_CWORD -eq 1 ]]; then
 		# Primary commands + hidden aliases
-		mapfile -t COMPREPLY < <(compgen -W "attach ls kill add remove clone-bare config help version list sessions projects" -- "$cur")
+		mapfile -t COMPREPLY < <(compgen -W "attach ls kill wt add remove clone-bare config help version list sessions projects" -- "$cur")
 		return
 	fi
 
@@ -27,6 +27,9 @@ _txs() {
 	case "$prev" in
 	attach)
 		mapfile -t COMPREPLY < <(compgen -W "$(_txs_projects)" -- "$cur")
+		;;
+	wt)
+		mapfile -t COMPREPLY < <(compgen -W "add remove list" -- "$cur")
 		;;
 	ls | list)
 		mapfile -t COMPREPLY < <(compgen -W "sessions projects worktrees" -- "$cur")
@@ -38,10 +41,22 @@ _txs() {
 		mapfile -t COMPREPLY < <(compgen -W "projects settings" -- "$cur")
 		;;
 	remove)
+		# 'txs wt remove' completes projects; 'txs remove' also completes projects
 		mapfile -t COMPREPLY < <(compgen -W "$(_txs_projects)" -- "$cur")
 		;;
 	kill)
 		mapfile -t COMPREPLY < <(compgen -W "$(_txs_sessions)" -- "$cur")
+		;;
+	*)
+		# Handle deeper completions: txs wt add/remove <project>
+		if [[ ${COMP_WORDS[1]} == "wt" && $COMP_CWORD -ge 3 ]]; then
+			local subcmd="${COMP_WORDS[2]}"
+			case "$subcmd" in
+			add | remove | list)
+				mapfile -t COMPREPLY < <(compgen -W "$(_txs_projects)" -- "$cur")
+				;;
+			esac
+		fi
 		;;
 	esac
 }
