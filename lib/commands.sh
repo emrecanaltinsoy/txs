@@ -111,13 +111,16 @@ cmd_attach()
     fi
 
     # Ensure session exists (create if needed)
+    local just_created=false
     if ! tmux_session_exists "$session_name"; then
+        just_created=true
         echo -e "Creating session $GREEN$session_name$RESET at $path..."
         if ! tmux new-session -d -s "$session_name" -c "$path"; then
             error "Failed to create tmux session '$session_name'"
             return 1
         fi
-        if [[ -n $on_create ]]; then
+        # For bare repos, defer on_create until we cd into the worktree
+        if [[ -n $on_create ]] && ! is_bare_repo "$path"; then
             while IFS= read -r cmd; do
                 [[ -z $cmd ]] && continue
                 tmux send-keys -t "=$session_name:" "$cmd" Enter
@@ -127,54 +130,70 @@ cmd_attach()
 
     # For bare repos, handle worktree selection
     if is_bare_repo "$path"; then
+        local target_wt_path=""
+
         if [[ -n $worktree_selector ]]; then
             # Direct worktree by basename
             local wt_path wt_name
             while IFS=$'\t' read -r wt_path wt_name; do
                 [[ -z $wt_path ]] && continue
                 if [[ $wt_name == "$worktree_selector" ]]; then
-                    open_worktree_in_session "$session_name" "$wt_path"
-                    return $?
+                    target_wt_path="$wt_path"
+                    break
                 fi
             done < <(get_project_worktrees "$path")
-            error "Worktree '$worktree_selector' not found in project '$project'."
-            return 1
+            if [[ -z $target_wt_path ]]; then
+                error "Worktree '$worktree_selector' not found in project '$project'."
+                return 1
+            fi
+        else
+            # Show fzf worktree picker
+            local worktrees
+            worktrees=$(get_project_worktrees "$path" | sort -t$'\t' -k2)
+            if [[ -z $worktrees ]]; then
+                tmux_attach_or_switch "$session_name"
+                return 0
+            fi
+
+            if ! command -v fzf &> /dev/null; then
+                tmux_attach_or_switch "$session_name"
+                return 0
+            fi
+
+            local selected
+            selected=$(printf '%s\n' "$worktrees" | fzf \
+                --delimiter=$'\t' \
+                --with-nth=2 \
+                --header="Pick a worktree for $project (ESC to cancel)" \
+                --prompt="worktree> " \
+                --height="$TXS_FZF_HEIGHT" \
+                --layout=reverse \
+                --border \
+                --ansi) || {
+                tmux_attach_or_switch "$session_name"
+                return 0
+            }
+
+            IFS=$'\t' read -r target_wt_path _ <<< "$selected"
         fi
 
-        # Show fzf worktree picker
-        local worktrees
-        worktrees=$(get_project_worktrees "$path" | sort -t$'\t' -k2)
-        if [[ -z $worktrees ]]; then
-            # No worktrees, just switch to the session
+        [[ -z $target_wt_path ]] && return 0
+
+        if [[ $just_created == true ]]; then
+            # Session was just created -- move window 0 to the worktree path
+            # instead of leaving it at the bare repo root
+            tmux send-keys -t "=$session_name:" "cd $(printf '%q' "$target_wt_path")" Enter
+            tmux rename-window -t "=$session_name:" "$(basename "$target_wt_path")"
+            if [[ -n $on_create ]]; then
+                while IFS= read -r cmd; do
+                    [[ -z $cmd ]] && continue
+                    tmux send-keys -t "=$session_name:" "$cmd" Enter
+                done <<< "$on_create"
+            fi
             tmux_attach_or_switch "$session_name"
-            return 0
+        else
+            open_worktree_in_session "$session_name" "$target_wt_path"
         fi
-
-        if ! command -v fzf &> /dev/null; then
-            # No fzf, just switch to session
-            tmux_attach_or_switch "$session_name"
-            return 0
-        fi
-
-        local selected
-        selected=$(printf '%s\n' "$worktrees" | fzf \
-            --delimiter=$'\t' \
-            --with-nth=2 \
-            --header="Pick a worktree for $project (ESC to cancel)" \
-            --prompt="worktree> " \
-            --height="$TXS_FZF_HEIGHT" \
-            --layout=reverse \
-            --border \
-            --ansi) || {
-            # ESC pressed, just switch to session
-            tmux_attach_or_switch "$session_name"
-            return 0
-        }
-
-        local chosen_path
-        IFS=$'\t' read -r chosen_path _ <<< "$selected"
-        [[ -z $chosen_path ]] && return 0
-        open_worktree_in_session "$session_name" "$chosen_path"
         return $?
     fi
 
