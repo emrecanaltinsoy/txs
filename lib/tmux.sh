@@ -46,7 +46,7 @@ find_window_by_path()
     while IFS='|' read -r win_index pane_path; do
         [[ -z $win_index || -z $pane_path ]] && continue
         if [[ $pane_path == "$worktree_path" || $pane_path == "$worktree_path"/* ]]; then
-            echo "$win_index"
+            printf '%s\n' "$win_index"
             return 0
         fi
     done < <(tmux list-panes -t "=$session" -a -F "#{window_index}|#{pane_current_path}" 2> /dev/null || true)

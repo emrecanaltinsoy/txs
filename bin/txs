@@ -46,7 +46,7 @@ require_arg() {
 	local value="$1" label="$2" usage="$3"
 	if [[ -z $value ]]; then
 		error "Missing $label."
-		echo "Usage: $usage" >&2
+		printf '%s\n' "Usage: $usage" >&2
 		return 1
 	fi
 }
@@ -92,14 +92,14 @@ main() {
 		cmd_help
 		;;
 	version | --version | -v)
-		echo "txs ${TXS_VERSION}"
+		printf '%s\n' "txs ${TXS_VERSION}"
 		;;
 	"")
 		cmd_interactive
 		;;
 	*)
 		error "Unknown command '${cmd}'."
-		echo ""
+		printf '\n'
 		cmd_help
 		return 1
 		;;

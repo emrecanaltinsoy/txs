@@ -8,9 +8,9 @@ cmd_ls()
         worktrees) _ls_worktrees ;;
         "")
             _ls_sessions
-            echo ""
+            printf '\n'
             _ls_projects
-            echo ""
+            printf '\n'
             _ls_worktrees
             ;;
         *)
@@ -24,38 +24,38 @@ _ls_sessions()
     local sessions
     sessions=$(get_active_sessions)
     if [[ -z $sessions ]]; then
-        echo -e "${DIM}No active tmux sessions.$RESET"
+        printf '%b\n' "${DIM}No active tmux sessions.$RESET"
         return 0
     fi
     fetch_session_windows
-    echo -e "${BOLD}Active sessions:$RESET"
-    echo ""
+    printf '%b\n' "${BOLD}Active sessions:$RESET"
+    printf '\n'
     while IFS= read -r session; do
         local windows="${SESSION_WINDOWS[$session]:-}"
-        echo -e "  $GREEN$session$RESET  ${DIM}[$windows]$RESET"
+        printf '%b\n' "  $GREEN$session$RESET  ${DIM}[$windows]$RESET"
     done <<< "$sessions"
 }
 _ls_projects()
 {
     parse_config || return 1
     if [[ ${#PROJECT_ORDER[@]} -eq 0 ]]; then
-        echo -e "${DIM}No projects configured in $CONFIG_FILE$RESET"
+        printf '%b\n' "${DIM}No projects configured in $CONFIG_FILE$RESET"
         return 0
     fi
     local active_sessions
     active_sessions=$(get_active_sessions)
-    echo -e "${BOLD}Configured projects:$RESET"
-    echo ""
+    printf '%b\n' "${BOLD}Configured projects:$RESET"
+    printf '\n'
     for project in "${PROJECT_ORDER[@]}"; do
         local path session_name status
         path=$(get_project_prop "$project" "path")
         session_name=$(get_project_prop "$project" "session_name")
-        if echo "$active_sessions" | grep -Fqx "$session_name"; then
+        if printf '%s\n' "$active_sessions" | grep -Fqx "$session_name"; then
             status="${GREEN}active$RESET"
         else
             status="${DIM}inactive$RESET"
         fi
-        echo -e "  $CYAN$project$RESET  [$status]  $path"
+        printf '%b\n' "  $CYAN$project$RESET  [$status]  $path"
     done
 }
 _ls_worktrees()
@@ -70,15 +70,15 @@ _ls_worktrees()
         while IFS=$'\t' read -r wt_path wt_name; do
             [[ -z $wt_path ]] && continue
             if [[ $found == false ]]; then
-                echo -e "${BOLD}Worktrees:$RESET"
-                echo ""
+                printf '%b\n' "${BOLD}Worktrees:$RESET"
+                printf '\n'
                 found=true
             fi
-            echo -e "  $CYAN$project$RESET - $wt_name  ${DIM}$wt_path$RESET"
+            printf '%b\n' "  $CYAN$project$RESET - $wt_name  ${DIM}$wt_path$RESET"
         done < <(get_project_worktrees "$path" | sort -t$'\t' -k2)
     done
     if [[ $found == false ]]; then
-        echo -e "${DIM}No worktrees found.$RESET"
+        printf '%b\n' "${DIM}No worktrees found.$RESET"
     fi
 }
 cmd_attach()
@@ -95,9 +95,9 @@ cmd_attach()
     parse_config || return 1
     if [[ -z ${PROJECT_PATH[$project]:-} ]]; then
         error "Project '$project' not found in config."
-        echo "Available projects:"
+        printf '%s\n' "Available projects:"
         for p in "${PROJECT_ORDER[@]}"; do
-            echo "  - $p"
+            printf '%s\n' "  - $p"
         done
         return 1
     fi
@@ -114,7 +114,7 @@ cmd_attach()
     local just_created=false
     if ! tmux_session_exists "$session_name"; then
         just_created=true
-        echo -e "Creating session $GREEN$session_name$RESET at $path..."
+        printf '%b\n' "Creating session $GREEN$session_name$RESET at $path..."
         if ! tmux new-session -d -s "$session_name" -c "$path"; then
             error "Failed to create tmux session '$session_name'"
             return 1
@@ -209,7 +209,7 @@ cmd_kill()
         local sessions
         sessions=$(get_active_sessions)
         if [[ -z $sessions ]]; then
-            echo -e "${DIM}No active tmux sessions.$RESET"
+            printf '%b\n' "${DIM}No active tmux sessions.$RESET"
             return 0
         fi
 
@@ -251,7 +251,7 @@ cmd_kill()
     fi
 
     tmux kill-session -t "=$target"
-    echo -e "Killed session $GREEN$target$RESET."
+    printf '%b\n' "Killed session $GREEN$target$RESET."
 }
 cmd_add()
 {
@@ -282,9 +282,9 @@ cmd_add()
     mkdir -p "$(dirname "$CONFIG_FILE")"
     # Append the new project
     {
-        echo ""
-        echo "[$name]"
-        echo "path = $resolved"
+        printf '\n'
+        printf '%s\n' "[$name]"
+        printf '%s\n' "path = $resolved"
     } >> "$CONFIG_FILE"
     info "Added project ${GREEN}$name${RESET} ($resolved)"
 }
@@ -472,10 +472,10 @@ cmd_clone_bare()
 
         git branch --set-upstream-to="origin/$default_branch" "$default_branch"
 
-        echo "---------------------------------------------------"
+        printf '%s\n' "---------------------------------------------------"
         info "Success! Setup complete in: $folder_name"
-        echo "Your repo data is hidden in .bare/"
-        echo "Your active worktree is in ./$default_branch"
+        printf '%s\n' "Your repo data is hidden in .bare/"
+        printf '%s\n' "Your active worktree is in ./$default_branch"
     ) || return $?
 
     # Auto-add to project config if enabled

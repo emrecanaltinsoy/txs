@@ -20,7 +20,7 @@ parse_config()
 {
     if [[ ! -f $CONFIG_FILE ]]; then
         error "Config file not found: $CONFIG_FILE"
-        echo "Create it with example projects, or run: txs help"
+        printf '%s\n' "Create it with example projects, or run: txs help"
         return 1
     fi
     # Reset state so repeated calls don't duplicate entries
@@ -114,20 +114,20 @@ get_project_prop()
     local prop="$2"
     case "$prop" in
         path)
-            echo "${PROJECT_PATH[$project]:-}"
+            printf '%s\n' "${PROJECT_PATH[$project]:-}"
             ;;
         session_name)
             local name="${PROJECT_SESSION_NAME[$project]:-${DEFAULTS[session_name]:-}}"
             [[ -z $name ]] && name="$project"
-            echo "${name//./-}"
+            printf '%s\n' "${name//./-}"
             ;;
-        on_create) echo "${PROJECT_ON_CREATE[$project]:-${DEFAULTS[on_create]:-}}" ;;
+        on_create) printf '%s\n' "${PROJECT_ON_CREATE[$project]:-${DEFAULTS[on_create]:-}}" ;;
     esac
 }
 expand_path()
 {
     local path="$1"
-    echo "${path/#\~/$HOME}"
+    printf '%s\n' "${path/#\~/$HOME}"
 }
 get_txs_setting()
 {
@@ -144,7 +144,7 @@ get_txs_setting()
             v="${v%%#*}"
             v=$(_trim "$v")
             if [[ $k == "$key" ]]; then
-                echo "$v"
+                printf '%s\n' "$v"
                 return 0
             fi
         fi

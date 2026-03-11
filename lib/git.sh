@@ -43,7 +43,7 @@ repo_name_from_url()
     local url="$1"
     local name
     name=$(basename "${url%/}")
-    echo "${name%.git}"
+    printf '%s\n' "${name%.git}"
 }
 
 get_active_worktrees()

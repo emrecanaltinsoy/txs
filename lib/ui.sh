@@ -3,7 +3,7 @@ cmd_interactive()
 {
     if ! command -v fzf &> /dev/null; then
         error "fzf is required for interactive mode."
-        echo "Install fzf or use subcommands directly (e.g., txs ls)"
+        printf '%s\n' "Install fzf or use subcommands directly (e.g., txs ls)"
         return 1
     fi
     parse_config || return 1
@@ -86,7 +86,7 @@ cmd_interactive()
     done
 
     if [[ ${#entries[@]} -eq 0 ]]; then
-        echo -e "${DIM}No sessions or projects available.$RESET"
+        printf '%b\n' "${DIM}No sessions or projects available.$RESET"
         return 0
     fi
 
