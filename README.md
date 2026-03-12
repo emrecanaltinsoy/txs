@@ -147,9 +147,9 @@ Session management:
                                List sessions, projects, and/or worktrees
 
 Worktree management:
-  txs wt add <branch> [project]
+  txs wt add [branch] [project]
                                Create a worktree and branch
-  txs wt remove <branch> [project]
+  txs wt remove [branch] [project]
                                Remove a worktree and delete branch
   txs wt list [project]        List worktrees
 
@@ -200,8 +200,14 @@ txs wt add feature-login myproject
 cd ~/projects/myproject/main
 txs wt add feature-login
 
+# Interactive: prompts for project (if not in a bare repo) and branch name
+txs wt add
+
 # Remove a worktree and its branch
 txs wt remove feature-login
+
+# Interactive: pick a worktree to remove, confirm branch deletion
+txs wt remove
 
 # Remove the worktree but keep the branch
 txs wt remove --keep-branch feature-login
@@ -219,7 +225,8 @@ new branch is created from HEAD.
 
 When removing, txs automatically kills any tmux window open at the worktree
 path before removing it. The branch is deleted by default; pass `--keep-branch`
-(or `-k`) to keep it.
+(or `-k`) to keep it. In interactive mode (no arguments), you are prompted to
+confirm branch deletion.
 
 ## Keybindings
 

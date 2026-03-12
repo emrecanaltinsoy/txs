@@ -1,4 +1,66 @@
 # Sourced by bin/txs -- not meant to be executed directly
+
+# ---------------------------------------------------------------------------
+# Reusable fzf pickers
+# ---------------------------------------------------------------------------
+pick_bare_project()
+{
+    if ! command -v fzf &> /dev/null; then
+        error "fzf is required for interactive mode."
+        return 1
+    fi
+    local projects
+    projects=$(get_bare_projects)
+    if [[ -z $projects ]]; then
+        error "No bare repo projects configured."
+        return 1
+    fi
+    local selected
+    selected=$(printf '%s\n' "$projects" | fzf \
+        --header="Pick a bare repo project (ESC to cancel)" \
+        --prompt="project> " \
+        --height="$TXS_FZF_HEIGHT" \
+        --layout=reverse \
+        --border \
+        --ansi) || return 1
+    [[ -z $selected ]] && return 1
+    printf '%s\n' "$selected"
+}
+pick_worktree()
+{
+    local project="$1"
+    if ! command -v fzf &> /dev/null; then
+        error "fzf is required for interactive mode."
+        return 1
+    fi
+    local path
+    path=$(expand_path "$(get_project_prop "$project" "path")")
+    local worktrees
+    worktrees=$(get_project_worktrees "$path" | sort -t$'\t' -k2)
+    if [[ -z $worktrees ]]; then
+        error "No worktrees found for $project."
+        return 1
+    fi
+    local selected
+    selected=$(printf '%s\n' "$worktrees" | fzf \
+        --delimiter=$'\t' \
+        --with-nth=2 \
+        --header="Pick a worktree for $project (ESC to cancel)" \
+        --prompt="worktree> " \
+        --height="$TXS_FZF_HEIGHT" \
+        --layout=reverse \
+        --border \
+        --ansi) || return 1
+    [[ -z $selected ]] && return 1
+    # Return the worktree basename
+    local wt_name
+    IFS=$'\t' read -r _ wt_name <<< "$selected"
+    printf '%s\n' "$wt_name"
+}
+
+# ---------------------------------------------------------------------------
+# Interactive session picker
+# ---------------------------------------------------------------------------
 cmd_interactive()
 {
     if ! command -v fzf &> /dev/null; then

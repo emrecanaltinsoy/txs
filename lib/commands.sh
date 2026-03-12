@@ -147,34 +147,21 @@ cmd_attach()
                 return 1
             fi
         else
-            # Show fzf worktree picker
-            local worktrees
-            worktrees=$(get_project_worktrees "$path" | sort -t$'\t' -k2)
-            if [[ -z $worktrees ]]; then
-                tmux_attach_or_switch "$session_name"
-                return 0
-            fi
-
-            if ! command -v fzf &> /dev/null; then
-                tmux_attach_or_switch "$session_name"
-                return 0
-            fi
-
-            local selected
-            selected=$(printf '%s\n' "$worktrees" | fzf \
-                --delimiter=$'\t' \
-                --with-nth=2 \
-                --header="Pick a worktree for $project (ESC to cancel)" \
-                --prompt="worktree> " \
-                --height="$TXS_FZF_HEIGHT" \
-                --layout=reverse \
-                --border \
-                --ansi) || {
+            # Interactive worktree picker
+            local picked
+            picked=$(pick_worktree "$project") || {
                 tmux_attach_or_switch "$session_name"
                 return 0
             }
-
-            IFS=$'\t' read -r target_wt_path _ <<< "$selected"
+            # Resolve full path from basename
+            local wt_path wt_name
+            while IFS=$'\t' read -r wt_path wt_name; do
+                [[ -z $wt_path ]] && continue
+                if [[ $wt_name == "$picked" ]]; then
+                    target_wt_path="$wt_path"
+                    break
+                fi
+            done < <(get_project_worktrees "$path")
         fi
 
         [[ -z $target_wt_path ]] && return 0
@@ -352,11 +339,16 @@ USAGE:
                                  List sessions, projects, and/or worktrees
 
   Worktree management:
-    txs wt add <branch> [project]
+    txs wt add [branch] [project]
                                  Create a worktree and branch
-    txs wt remove <branch> [project]
+    txs wt remove [branch] [project]
                                  Remove a worktree and delete branch
     txs wt list [project]        List worktrees
+
+    When called without arguments, wt add prompts for a branch name and
+    wt remove shows an interactive worktree picker. If not inside a bare
+    repo, a project picker is shown first. Use --keep-branch (-k) with
+    wt remove to keep the branch after removing the worktree.
 
   Project configuration:
     txs add [path]               Add a directory to the config (default: .)
@@ -445,12 +437,26 @@ _wt_add()
     local project="${2:-}"
 
     if [[ -z $branch ]]; then
-        error "Missing branch name."
-        printf '%s\n' "Usage: txs wt add <branch> [project]" >&2
-        return 1
+        # Interactive mode: prompt for project and branch
+        if [[ ! -t 0 ]]; then
+            error "Missing branch name."
+            printf '%s\n' "Usage: txs wt add <branch> [project]" >&2
+            return 1
+        fi
+        if [[ -z $project ]]; then
+            parse_config || return 1
+            project=$(resolve_project_from_cwd 2> /dev/null) || project=$(pick_bare_project) || return 1
+        fi
+        printf '%s' "Branch name: "
+        read -r branch
+        if [[ -z $branch ]]; then
+            error "Missing branch name."
+            return 1
+        fi
+    else
+        project=$(_wt_resolve_project "$project") || return 1
     fi
 
-    project=$(_wt_resolve_project "$project") || return 1
     parse_config || return 1
     local path
     path=$(expand_path "$(get_project_prop "$project" "path")")
@@ -502,13 +508,23 @@ _wt_remove()
     local project="${args[1]:-}"
 
     if [[ -z $branch ]]; then
-        error "Missing branch name."
-        printf '%s\n' "Usage: txs wt remove [--keep-branch] <branch> [project]" >&2
-        return 1
+        # Interactive mode: pick project and worktree
+        if [[ ! -t 0 ]]; then
+            error "Missing branch name."
+            printf '%s\n' "Usage: txs wt remove [--keep-branch] <branch> [project]" >&2
+            return 1
+        fi
+        if [[ -z $project ]]; then
+            parse_config || return 1
+            project=$(resolve_project_from_cwd 2> /dev/null) || project=$(pick_bare_project) || return 1
+        fi
+        parse_config || return 1
+        branch=$(pick_worktree "$project") || return 1
+    else
+        project=$(_wt_resolve_project "$project") || return 1
+        parse_config || return 1
     fi
 
-    project=$(_wt_resolve_project "$project") || return 1
-    parse_config || return 1
     local path
     path=$(expand_path "$(get_project_prop "$project" "path")")
 
@@ -538,7 +554,21 @@ _wt_remove()
     fi
     info "Removed worktree ${GREEN}$branch${RESET}"
 
-    if [[ $keep_branch == false ]]; then
+    if [[ $keep_branch == true ]]; then
+        # Explicitly asked to keep branch -- skip deletion
+        :
+    elif [[ -t 0 ]] && [[ ${#args[@]} -eq 0 ]]; then
+        # Interactive mode -- ask for confirmation
+        printf '%s' "Keep branch '$branch'? (y/N) "
+        local ans
+        read -r ans
+        if [[ $ans != [yY]* ]]; then
+            if git -C "$path" branch -D "$branch" 2> /dev/null; then
+                info "Deleted branch ${GREEN}$branch${RESET}"
+            fi
+        fi
+    else
+        # Non-interactive default: delete branch
         if git -C "$path" branch -D "$branch" 2> /dev/null; then
             info "Deleted branch ${GREEN}$branch${RESET}"
         fi

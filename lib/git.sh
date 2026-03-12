@@ -90,6 +90,17 @@ resolve_project_from_cwd()
     return 1
 }
 
+get_bare_projects()
+{
+    # List configured projects that are bare repos (one name per line)
+    # Requires: parse_config called beforehand
+    for project in "${PROJECT_ORDER[@]}"; do
+        local path
+        path=$(expand_path "$(get_project_prop "$project" "path")")
+        [[ -d $path ]] && is_bare_repo "$path" && printf '%s\n' "$project"
+    done
+}
+
 repo_name_from_url()
 {
     local url="$1"
