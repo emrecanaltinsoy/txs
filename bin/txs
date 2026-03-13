@@ -99,14 +99,12 @@ main() {
 	fi
 
 	case "$cmd" in
-	ls | list)
-		cmd_ls "${2:-}"
-		;;
-	sessions)
-		cmd_ls "sessions"
-		;;
-	projects)
-		cmd_ls "projects"
+	ls | list | sessions | projects)
+		if [[ $cmd == "sessions" || $cmd == "projects" ]]; then
+			cmd_ls "$cmd"
+		else
+			cmd_ls "${2:-}"
+		fi
 		;;
 	attach)
 		cmd_attach "${2:-}" "${3:-}"

@@ -374,6 +374,8 @@ USAGE:
 
 ALIASES:
     list      -> ls
+    sessions  -> ls sessions
+    projects  -> ls projects
 
 INTERACTIVE MODE:
     When run with no arguments, an fzf picker shows:
@@ -610,12 +612,15 @@ cmd_clone_bare()
     (
         cd "$folder_name" || exit
 
+        info "Cloning bare repository..."
         git clone --bare "$repo_url" .bare
         printf 'gitdir: ./.bare\n' > .git
 
+        info "Configuring remote tracking..."
         git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
         git fetch origin
 
+        info "Detecting default branch..."
         local default_branch=""
         if git show-ref --verify --quiet refs/remotes/origin/HEAD; then
             default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD)
@@ -633,6 +638,7 @@ cmd_clone_bare()
             exit 1
         fi
 
+        info "Creating worktree for ${GREEN}$default_branch${RESET}..."
         if git show-ref --verify --quiet "refs/heads/$default_branch"; then
             git worktree add "$folder_name.$default_branch" "$default_branch"
         else
