@@ -143,6 +143,7 @@ on_create = nvim .
 path = /tmp/another
 CONF
 CONFIG_FILE="$TMPDIR_TEST/projects.conf"
+_CONFIG_LOADED=false
 declare -A PROJECT_PATH=()
 declare -A PROJECT_SESSION_NAME=()
 declare -A PROJECT_ON_CREATE=()
@@ -172,6 +173,7 @@ on_create = tmux split-window -v
     nvim .
 CONF
 CONFIG_FILE="$TMPDIR_TEST/projects.conf"
+_CONFIG_LOADED=false
 declare -A PROJECT_PATH=()
 declare -A PROJECT_SESSION_NAME=()
 declare -A PROJECT_ON_CREATE=()

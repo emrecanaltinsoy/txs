@@ -16,14 +16,18 @@ _trim()
     str="${str%"${str##*[![:space:]]}"}"
     printf '%s' "$str"
 }
+_CONFIG_LOADED=false
 parse_config()
 {
+    if [[ $_CONFIG_LOADED == true ]]; then
+        return 0
+    fi
     if [[ ! -f $CONFIG_FILE ]]; then
         error "Config file not found: $CONFIG_FILE"
         printf '%s\n' "Create it with example projects, or run: txs help"
         return 1
     fi
-    # Reset state so repeated calls don't duplicate entries
+    # Reset state
     PROJECT_PATH=()
     PROJECT_SESSION_NAME=()
     PROJECT_ON_CREATE=()
@@ -107,6 +111,7 @@ parse_config()
         last_key=""
         warn "Could not parse line $line_num: $line"
     done < "$CONFIG_FILE"
+    _CONFIG_LOADED=true
 }
 get_project_prop()
 {

@@ -14,18 +14,17 @@ is_bare_repo()
     return 1
 }
 
-get_project_worktrees()
+_list_worktree_paths()
 {
+    # Parse git worktree list --porcelain and output one worktree path per line.
+    # Skips bare entries. Usage: _list_worktree_paths <git-dir>
     local path="$1"
-
     local line wt_path is_bare
     wt_path=""
     is_bare=false
     while IFS= read -r line; do
         if [[ -z $line ]]; then
-            if [[ -n $wt_path && $is_bare == false ]]; then
-                printf '%s\t%s\n' "$wt_path" "$(basename "$wt_path")"
-            fi
+            [[ -n $wt_path && $is_bare == false ]] && printf '%s\n' "$wt_path"
             wt_path=""
             is_bare=false
             continue
@@ -36,9 +35,17 @@ get_project_worktrees()
         esac
     done < <(git -C "$path" worktree list --porcelain 2> /dev/null || true)
     # Flush last entry if output lacked a trailing blank line
-    if [[ -n $wt_path && $is_bare == false ]]; then
+    [[ -n $wt_path && $is_bare == false ]] && printf '%s\n' "$wt_path"
+}
+
+get_project_worktrees()
+{
+    local path="$1"
+    local wt_path
+    while IFS= read -r wt_path; do
+        [[ -z $wt_path ]] && continue
         printf '%s\t%s\n' "$wt_path" "$(basename "$wt_path")"
-    fi
+    done < <(_list_worktree_paths "$path")
 }
 
 get_repo_info()
@@ -72,6 +79,22 @@ get_repo_info()
     }
     root=$(cd "$root" && pwd -P)
     printf '%s\t%s\n' "$root" "normal"
+}
+
+_wt_path()
+{
+    # Compute the worktree directory path for a branch.
+    # Usage: _wt_path <root> <repo_type> <branch>
+    # Bare:   $root/<reponame>.<branch>
+    # Normal: $(dirname $root)/<reponame>.<branch>
+    local root="$1" repo_type="$2" branch="$3"
+    local dir_name
+    dir_name="$(basename "$root").$branch"
+    if [[ $repo_type == "bare" ]]; then
+        printf '%s\n' "$root/$dir_name"
+    else
+        printf '%s\n' "$(dirname "$root")/$dir_name"
+    fi
 }
 
 repo_name_from_url()
@@ -108,28 +131,11 @@ get_active_worktrees()
             esac
         fi
 
-        local line wt_path is_bare
-        wt_path=""
-        is_bare=false
-        while IFS= read -r line; do
-            if [[ -z $line ]]; then
-                if [[ -n $wt_path && $is_bare == false && -z ${seen[$wt_path]:-} ]]; then
-                    seen[$wt_path]=1
-                    printf '%s\t%s\t%s - %s\n' "$session" "$wt_path" "$repo_name" "$(basename "$wt_path")"
-                fi
-                wt_path=""
-                is_bare=false
-                continue
-            fi
-            case "$line" in
-                worktree\ *) wt_path="${line#worktree }" ;;
-                bare) is_bare=true ;;
-            esac
-        done < <(git -C "$pane_path" worktree list --porcelain 2> /dev/null || true)
-        # Flush last entry if output lacked a trailing blank line
-        if [[ -n $wt_path && $is_bare == false && -z ${seen[$wt_path]:-} ]]; then
+        local wt_path
+        while IFS= read -r wt_path; do
+            [[ -z $wt_path || -n ${seen[$wt_path]:-} ]] && continue
             seen[$wt_path]=1
             printf '%s\t%s\t%s - %s\n' "$session" "$wt_path" "$repo_name" "$(basename "$wt_path")"
-        fi
+        done < <(_list_worktree_paths "$pane_path")
     done < <(tmux list-panes -a -F "#{session_name}|#{pane_current_path}" 2> /dev/null || true)
 }

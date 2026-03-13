@@ -81,6 +81,82 @@ _ls_worktrees()
         printf '%b\n' "${DIM}No worktrees found.$RESET"
     fi
 }
+_send_on_create()
+{
+    # Send on_create commands to a tmux session
+    local session_name="$1" on_create="$2"
+    [[ -z $on_create ]] && return 0
+    local cmd
+    while IFS= read -r cmd; do
+        [[ -z $cmd ]] && continue
+        tmux send-keys -t "=$session_name:" "$cmd" Enter
+    done <<< "$on_create"
+}
+_ensure_session()
+{
+    # Create a tmux session if it doesn't exist. Returns "created" or "existed".
+    local session_name="$1" path="$2" on_create="$3"
+    if tmux_session_exists "$session_name"; then
+        printf '%s\n' "existed"
+        return 0
+    fi
+    printf '%b\n' "Creating session $GREEN$session_name$RESET at $path..." >&2
+    if ! tmux new-session -d -s "$session_name" -c "$path"; then
+        error "Failed to create tmux session '$session_name'"
+        return 1
+    fi
+    # For bare repos, defer on_create until we cd into the worktree
+    if ! is_bare_repo "$path"; then
+        _send_on_create "$session_name" "$on_create"
+    fi
+    printf '%s\n' "created"
+}
+_attach_bare_repo()
+{
+    # Handle worktree selection and attach for bare repo projects
+    local project="$1" path="$2" session_name="$3" on_create="$4"
+    local worktree_selector="${5:-}"
+    local just_created="$6"
+
+    local target_wt_path=""
+
+    if [[ -n $worktree_selector ]]; then
+        # Direct worktree by basename
+        local wt_path wt_name
+        while IFS=$'\t' read -r wt_path wt_name; do
+            [[ -z $wt_path ]] && continue
+            if [[ $wt_name == "$worktree_selector" ]]; then
+                target_wt_path="$wt_path"
+                break
+            fi
+        done < <(get_project_worktrees "$path")
+        if [[ -z $target_wt_path ]]; then
+            error "Worktree '$worktree_selector' not found in project '$project'."
+            return 1
+        fi
+    else
+        # Interactive worktree picker
+        local picked
+        picked=$(pick_worktree "$path") || {
+            tmux_attach_or_switch "$session_name"
+            return 0
+        }
+        # Resolve full path from branch name
+        target_wt_path=$(_wt_path "$path" "bare" "$picked")
+    fi
+
+    [[ -z $target_wt_path ]] && return 0
+
+    if [[ $just_created == true ]]; then
+        # Session was just created -- move window 0 to the worktree path
+        tmux send-keys -t "=$session_name:" "cd $(printf '%q' "$target_wt_path")" Enter
+        tmux rename-window -t "=$session_name:" "$(basename "$target_wt_path")"
+        _send_on_create "$session_name" "$on_create"
+        tmux_attach_or_switch "$session_name"
+    else
+        open_worktree_in_session "$session_name" "$target_wt_path"
+    fi
+}
 cmd_attach()
 {
     local project="${1:-}"
@@ -110,70 +186,13 @@ cmd_attach()
         return 1
     fi
 
-    # Ensure session exists (create if needed)
+    local session_state
+    session_state=$(_ensure_session "$session_name" "$path" "$on_create") || return 1
     local just_created=false
-    if ! tmux_session_exists "$session_name"; then
-        just_created=true
-        printf '%b\n' "Creating session $GREEN$session_name$RESET at $path..."
-        if ! tmux new-session -d -s "$session_name" -c "$path"; then
-            error "Failed to create tmux session '$session_name'"
-            return 1
-        fi
-        # For bare repos, defer on_create until we cd into the worktree
-        if [[ -n $on_create ]] && ! is_bare_repo "$path"; then
-            while IFS= read -r cmd; do
-                [[ -z $cmd ]] && continue
-                tmux send-keys -t "=$session_name:" "$cmd" Enter
-            done <<< "$on_create"
-        fi
-    fi
+    [[ $session_state == "created" ]] && just_created=true
 
-    # For bare repos, handle worktree selection
     if is_bare_repo "$path"; then
-        local target_wt_path=""
-
-        if [[ -n $worktree_selector ]]; then
-            # Direct worktree by basename
-            local wt_path wt_name
-            while IFS=$'\t' read -r wt_path wt_name; do
-                [[ -z $wt_path ]] && continue
-                if [[ $wt_name == "$worktree_selector" ]]; then
-                    target_wt_path="$wt_path"
-                    break
-                fi
-            done < <(get_project_worktrees "$path")
-            if [[ -z $target_wt_path ]]; then
-                error "Worktree '$worktree_selector' not found in project '$project'."
-                return 1
-            fi
-        else
-            # Interactive worktree picker
-            local picked
-            picked=$(pick_worktree "$path") || {
-                tmux_attach_or_switch "$session_name"
-                return 0
-            }
-            # Resolve full path from branch name
-            target_wt_path=$(_wt_path "$path" "bare" "$picked")
-        fi
-
-        [[ -z $target_wt_path ]] && return 0
-
-        if [[ $just_created == true ]]; then
-            # Session was just created -- move window 0 to the worktree path
-            # instead of leaving it at the bare repo root
-            tmux send-keys -t "=$session_name:" "cd $(printf '%q' "$target_wt_path")" Enter
-            tmux rename-window -t "=$session_name:" "$(basename "$target_wt_path")"
-            if [[ -n $on_create ]]; then
-                while IFS= read -r cmd; do
-                    [[ -z $cmd ]] && continue
-                    tmux send-keys -t "=$session_name:" "$cmd" Enter
-                done <<< "$on_create"
-            fi
-            tmux_attach_or_switch "$session_name"
-        else
-            open_worktree_in_session "$session_name" "$target_wt_path"
-        fi
+        _attach_bare_repo "$project" "$path" "$session_name" "$on_create" "$worktree_selector" "$just_created"
         return $?
     fi
 
@@ -266,6 +285,7 @@ cmd_add()
         printf '%s\n' "[$name]"
         printf '%s\n' "path = $resolved"
     } >> "$CONFIG_FILE"
+    _CONFIG_LOADED=false
     info "Added project ${GREEN}$name${RESET} ($resolved)"
 }
 cmd_remove()
@@ -297,6 +317,7 @@ cmd_remove()
     ' "$CONFIG_FILE" > "$tmpfile"
     # Remove trailing blank lines (portable across GNU/BSD)
     awk '/[^[:space:]]/ { blank = 0 } { lines[++n] = $0; if (/[^[:space:]]/) last = n } END { for (i = 1; i <= last; i++) print lines[i] }' "$tmpfile" > "$CONFIG_FILE"
+    _CONFIG_LOADED=false
     info "Removed project ${GREEN}$project${RESET}"
 }
 cmd_config()
@@ -408,21 +429,6 @@ EOF
 # ---------------------------------------------------------------------------
 # Worktree management: txs wt (operates on current directory's git repo)
 # ---------------------------------------------------------------------------
-_wt_path()
-{
-    # Compute the worktree directory path for a branch.
-    # Usage: _wt_path <root> <repo_type> <branch>
-    # Bare:   $root/<reponame>.<branch>
-    # Normal: $(dirname $root)/<reponame>.<branch>
-    local root="$1" repo_type="$2" branch="$3"
-    local dir_name
-    dir_name="$(basename "$root").$branch"
-    if [[ $repo_type == "bare" ]]; then
-        printf '%s\n' "$root/$dir_name"
-    else
-        printf '%s\n' "$(dirname "$root")/$dir_name"
-    fi
-}
 _wt_add()
 {
     local branch="${1:-}"
