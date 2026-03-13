@@ -683,6 +683,7 @@ cmd_clone_bare()
         fi
 
         git branch --set-upstream-to="origin/$default_branch" "$default_branch"
+        git worktree lock "$default_branch"
 
         printf '%s\n' "---------------------------------------------------"
         info "Success! Setup complete in: $folder_name"
