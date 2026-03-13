@@ -104,11 +104,11 @@ wt_output=$("$TXS" wt invalid 2>&1) && ec=0 || ec=$?
 assert_exit_code "wt invalid subcommand exits non-zero" "1" "$ec"
 assert_contains "wt invalid subcommand shows error" "$wt_output" "Unknown wt subcommand"
 echo -e "${BOLD}test: wt add missing branch$RESET"
-wt_add_output=$("$TXS" wt add 2>&1) && ec=0 || ec=$?
+wt_add_output=$("$TXS" wt add 2>&1 < /dev/null) && ec=0 || ec=$?
 assert_exit_code "wt add missing branch exits non-zero" "1" "$ec"
 assert_contains "wt add missing branch shows error" "$wt_add_output" "Missing branch name"
 echo -e "${BOLD}test: wt remove missing branch$RESET"
-wt_rm_output=$("$TXS" wt remove 2>&1) && ec=0 || ec=$?
+wt_rm_output=$("$TXS" wt remove 2>&1 < /dev/null) && ec=0 || ec=$?
 assert_exit_code "wt remove missing branch exits non-zero" "1" "$ec"
 assert_contains "wt remove missing branch shows error" "$wt_rm_output" "Missing branch name"
 echo -e "${BOLD}test: wt add outside git repo$RESET"
@@ -210,6 +210,127 @@ TXS_SETTINGS_FILE="$TMPDIR_TEST/nonexistent_file"
 fzf_h=$(get_txs_setting "fzf_height")
 _default="${fzf_h:-50%}"
 assert_eq "fzf_height defaults to 50% when missing" "50%" "$_default"
+# ---------------------------------------------------------------------------
+# 6.5: require_arg -- missing arguments
+# ---------------------------------------------------------------------------
+echo -e "${BOLD}test: require_arg missing arguments$RESET"
+remove_output=$("$TXS" remove 2>&1) && ec=0 || ec=$?
+assert_exit_code "txs remove with no arg exits non-zero" "1" "$ec"
+assert_contains "txs remove with no arg shows error" "$remove_output" "Missing project name"
+clone_output=$("$TXS" clone-bare 2>&1) && ec=0 || ec=$?
+assert_exit_code "txs clone-bare with no arg exits non-zero" "1" "$ec"
+assert_contains "txs clone-bare with no arg shows error" "$clone_output" "Missing repository URL"
+# ---------------------------------------------------------------------------
+# 6.1: cmd_add / cmd_remove
+# ---------------------------------------------------------------------------
+echo -e "${BOLD}test: cmd_add$RESET"
+TMPDIR_TEST=$(mktemp -d)
+CONFIG_FILE="$TMPDIR_TEST/projects.conf"
+_CONFIG_LOADED=false
+# Source git.sh for functions used by commands.sh
+source "$PROJECT_ROOT/lib/git.sh"
+source "$PROJECT_ROOT/lib/commands.sh"
+# Create a directory to add
+mkdir -p "$TMPDIR_TEST/my-project"
+add_output=$(cmd_add "$TMPDIR_TEST/my-project" 2>&1) || true
+assert_contains "cmd_add reports success" "$add_output" "Added project"
+# Verify file exists
+[[ -f $CONFIG_FILE ]] && _file_exists="true" || _file_exists="false"
+assert_eq "config file exists after add" "true" "$_file_exists"
+# Parse and verify
+_CONFIG_LOADED=false
+declare -A PROJECT_PATH=()
+declare -A PROJECT_SESSION_NAME=()
+declare -A PROJECT_ON_CREATE=()
+declare -a PROJECT_ORDER=()
+declare -A DEFAULTS=()
+parse_config
+assert_eq "added project appears in config" "1" "${#PROJECT_ORDER[@]}"
+assert_eq "added project name is correct" "my-project" "${PROJECT_ORDER[0]}"
+_add_key="my-project"
+assert_eq "added project path is correct" "$TMPDIR_TEST/my-project" "${PROJECT_PATH[$_add_key]}"
+echo -e "${BOLD}test: cmd_add duplicate detection$RESET"
+dup_output=$(cmd_add "$TMPDIR_TEST/my-project" 2>&1) && ec=0 || ec=$?
+assert_exit_code "duplicate add exits non-zero" "1" "$ec"
+assert_contains "duplicate add shows error" "$dup_output" "already exists"
+echo -e "${BOLD}test: cmd_add nonexistent path$RESET"
+bad_output=$(cmd_add "$TMPDIR_TEST/no-such-dir" 2>&1) && ec=0 || ec=$?
+assert_exit_code "add nonexistent path exits non-zero" "1" "$ec"
+assert_contains "add nonexistent path shows error" "$bad_output" "does not exist"
+echo -e "${BOLD}test: cmd_remove$RESET"
+rm_output=$(cmd_remove "my-project" 2>&1) || true
+assert_contains "cmd_remove reports success" "$rm_output" "Removed project"
+# Parse and verify it's gone
+_CONFIG_LOADED=false
+declare -A PROJECT_PATH=()
+declare -A PROJECT_SESSION_NAME=()
+declare -A PROJECT_ON_CREATE=()
+declare -a PROJECT_ORDER=()
+declare -A DEFAULTS=()
+parse_config
+assert_eq "removed project gone from config" "0" "${#PROJECT_ORDER[@]}"
+echo -e "${BOLD}test: cmd_remove nonexistent project$RESET"
+rm_bad_output=$(cmd_remove "nonexistent" 2>&1) && ec=0 || ec=$?
+assert_exit_code "remove nonexistent exits non-zero" "1" "$ec"
+assert_contains "remove nonexistent shows error" "$rm_bad_output" "not found"
+# ---------------------------------------------------------------------------
+# 6.4: Special characters in paths (spaces)
+# ---------------------------------------------------------------------------
+echo -e "${BOLD}test: cmd_add with spaces in path$RESET"
+CONFIG_FILE="$TMPDIR_TEST/projects2.conf"
+_CONFIG_LOADED=false
+mkdir -p "$TMPDIR_TEST/cool project"
+add_space_output=$(cmd_add "$TMPDIR_TEST/cool project" 2>&1) || true
+assert_contains "add with spaces reports success" "$add_space_output" "Added project"
+# The name should have space replaced with -
+_CONFIG_LOADED=false
+declare -A PROJECT_PATH=()
+declare -A PROJECT_SESSION_NAME=()
+declare -A PROJECT_ON_CREATE=()
+declare -a PROJECT_ORDER=()
+declare -A DEFAULTS=()
+parse_config
+assert_eq "space in name sanitized" "cool-project" "${PROJECT_ORDER[0]}"
+_space_key="cool-project"
+assert_eq "path with spaces preserved" "$TMPDIR_TEST/cool project" "${PROJECT_PATH[$_space_key]}"
+# ---------------------------------------------------------------------------
+# 6.3: clone-bare (integration test with local repo)
+# ---------------------------------------------------------------------------
+echo -e "${BOLD}test: clone-bare$RESET"
+# Create a local "origin" repo
+_origin="$TMPDIR_TEST/origin-repo"
+mkdir -p "$_origin"
+git -C "$_origin" init --bare > /dev/null 2>&1
+# Add a commit so there's a branch
+_work="$TMPDIR_TEST/origin-work"
+git clone "$_origin" "$_work" > /dev/null 2>&1
+git -C "$_work" config user.email "test@test.com"
+git -C "$_work" config user.name "Test"
+git -C "$_work" commit --allow-empty -m "initial" > /dev/null 2>&1
+git -C "$_work" push origin main > /dev/null 2>&1 || git -C "$_work" push origin master > /dev/null 2>&1
+# Detect which branch was pushed
+_default_branch=$(git -C "$_origin" branch | sed 's/^[* ]*//' | head -n1)
+# Use a fresh config for clone-bare
+CONFIG_FILE="$TMPDIR_TEST/clone-projects.conf"
+TXS_SETTINGS_FILE="$TMPDIR_TEST/clone-settings"
+printf 'auto_add_clone = true\n' > "$TXS_SETTINGS_FILE"
+_CONFIG_LOADED=false
+# Run clone-bare from a temp working directory
+_clone_dir="$TMPDIR_TEST/clone-test"
+mkdir -p "$_clone_dir"
+clone_output=$(cd "$_clone_dir" && cmd_clone_bare "$_origin" "myrepo" 2>&1) || true
+assert_contains "clone-bare reports success" "$clone_output" "Success!"
+# Verify directory structure
+[[ -d "$_clone_dir/myrepo/.bare" ]] && _bare="true" || _bare="false"
+assert_eq "bare directory exists" "true" "$_bare"
+[[ -f "$_clone_dir/myrepo/.git" ]] && _gitfile="true" || _gitfile="false"
+assert_eq ".git file exists" "true" "$_gitfile"
+# Verify worktree was created
+[[ -d "$_clone_dir/myrepo/myrepo.$_default_branch" ]] && _wt="true" || _wt="false"
+assert_eq "default worktree created" "true" "$_wt"
+# Verify auto-add to config
+[[ -f $CONFIG_FILE ]] && _added="true" || _added="false"
+assert_eq "clone-bare auto-added to config" "true" "$_added"
 echo ""
 echo -e "${BOLD}Results: $PASS/$TOTAL passed, $FAIL failed$RESET"
 if [[ $FAIL -gt 0 ]]; then
