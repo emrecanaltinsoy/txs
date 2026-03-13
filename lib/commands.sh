@@ -677,9 +677,9 @@ cmd_clone_bare()
         fi
 
         if git show-ref --verify --quiet "refs/heads/$default_branch"; then
-            git worktree add "$default_branch" "$default_branch"
+            git worktree add "$folder_name.$default_branch" "$default_branch"
         else
-            git worktree add -b "$default_branch" "$default_branch" "origin/$default_branch"
+            git worktree add -b "$folder_name.$default_branch" "$default_branch" "origin/$default_branch"
         fi
 
         git branch --set-upstream-to="origin/$default_branch" "$default_branch"
