@@ -234,18 +234,15 @@ it directly from the shell. However, you can use it in any terminal. Here are so
 Launch in a floating popup:
 
 ```sh
-bind-key C-s display-popup -E -w 80% -h 70% "txs"
-```
-
-Or run inline (no popup):
-
-```sh
-bind-key C-s run-shell "txs"
+bind-key -r C-s display-popup -E -w 80% -h 70% "txs"
+bind-key -r C-k display-popup -E -w 80% -h 70% "txs kill"
+bind-key -r C-w display-popup -E -w 80% -h 70% "txs wt add"
+bind-key -r C-r display-popup -E -w 80% -h 70% "txs wt remove"
 ```
 
 ### Neovim
 
-If inside tmux, this keymap opens txs in a tmux popup. Outside tmux it has no effect.
+If inside tmux, these keymaps open txs in a tmux popup. Outside tmux they have no effect.
 
 ```lua
 vim.keymap.set("n", "<leader>tt", function()
@@ -253,6 +250,24 @@ vim.keymap.set("n", "<leader>tt", function()
     vim.fn.system('tmux display-popup -E -w 80% -h 70% "txs"')
   end
 end, { desc = "Start txs" })
+
+vim.keymap.set("n", "<leader>tk", function()
+  if vim.env.TMUX then
+    vim.fn.system('tmux display-popup -E -w 80% -h 70% "txs kill"')
+  end
+end, { desc = "Start txs kill" })
+
+vim.keymap.set("n", "<leader>ta", function()
+  if vim.env.TMUX then
+    vim.fn.system('tmux display-popup -E -w 80% -h 70% "txs wt add"')
+  end
+end, { desc = "Add worktree" })
+
+vim.keymap.set("n", "<leader>tr", function()
+  if vim.env.TMUX then
+    vim.fn.system('tmux display-popup -E -w 80% -h 70% "txs wt remove"')
+  end
+end, { desc = "Remove worktree" })
 ```
 
 ## Pairing with tmuxifier
