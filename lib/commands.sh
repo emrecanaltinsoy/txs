@@ -149,19 +149,12 @@ cmd_attach()
         else
             # Interactive worktree picker
             local picked
-            picked=$(pick_worktree "$project") || {
+            picked=$(pick_worktree "$path") || {
                 tmux_attach_or_switch "$session_name"
                 return 0
             }
-            # Resolve full path from basename
-            local wt_path wt_name
-            while IFS=$'\t' read -r wt_path wt_name; do
-                [[ -z $wt_path ]] && continue
-                if [[ $wt_name == "$picked" ]]; then
-                    target_wt_path="$wt_path"
-                    break
-                fi
-            done < <(get_project_worktrees "$path")
+            # Resolve full path from branch name
+            target_wt_path=$(_wt_path "$path" "bare" "$picked")
         fi
 
         [[ -z $target_wt_path ]] && return 0
@@ -338,17 +331,14 @@ USAGE:
     txs ls [sessions|projects|worktrees]
                                  List sessions, projects, and/or worktrees
 
-  Worktree management:
-    txs wt add [branch] [project]
-                                 Create a worktree and branch
-    txs wt remove [branch] [project]
-                                 Remove a worktree and delete branch
-    txs wt list [project]        List worktrees
+  Worktree management (run from any git repo):
+    txs wt add [branch]          Create a worktree (prompts if omitted)
+    txs wt remove [branch]       Remove a worktree (picker if omitted)
+    txs wt list                  List worktrees
 
-    When called without arguments, wt add prompts for a branch name and
-    wt remove shows an interactive worktree picker. If not inside a bare
-    repo, a project picker is shown first. Use --keep-branch (-k) with
-    wt remove to keep the branch after removing the worktree.
+    Bare repos: worktrees created inside the repo directory.
+    Normal repos: worktrees created as siblings (<repo>.<branch>).
+    Use --keep-branch (-k) with remove to keep the branch.
 
   Project configuration:
     txs add [path]               Add a directory to the config (default: .)
@@ -415,37 +405,36 @@ DEPENDENCIES:
 EOF
 }
 # ---------------------------------------------------------------------------
-# Worktree management: txs wt
+# Worktree management: txs wt (operates on current directory's git repo)
 # ---------------------------------------------------------------------------
-_wt_resolve_project()
+_wt_path()
 {
-    local project="${1:-}"
-    if [[ -n $project ]]; then
-        parse_config || return 1
-        if [[ -z ${PROJECT_PATH[$project]:-} ]]; then
-            error "Project '$project' not found in config."
-            return 1
-        fi
-        printf '%s\n' "$project"
-        return 0
+    # Compute the worktree directory path for a branch.
+    # Usage: _wt_path <root> <repo_type> <branch>
+    # Bare:   $root/<reponame>.<branch>
+    # Normal: $(dirname $root)/<reponame>.<branch>
+    local root="$1" repo_type="$2" branch="$3"
+    local dir_name
+    dir_name="$(basename "$root").$branch"
+    if [[ $repo_type == "bare" ]]; then
+        printf '%s\n' "$root/$dir_name"
+    else
+        printf '%s\n' "$(dirname "$root")/$dir_name"
     fi
-    resolve_project_from_cwd
 }
 _wt_add()
 {
     local branch="${1:-}"
-    local project="${2:-}"
+
+    local repo_info root repo_type
+    repo_info=$(get_repo_info) || return 1
+    IFS=$'\t' read -r root repo_type <<< "$repo_info"
 
     if [[ -z $branch ]]; then
-        # Interactive mode: prompt for project and branch
         if [[ ! -t 0 ]]; then
             error "Missing branch name."
-            printf '%s\n' "Usage: txs wt add <branch> [project]" >&2
+            printf '%s\n' "Usage: txs wt add <branch>" >&2
             return 1
-        fi
-        if [[ -z $project ]]; then
-            parse_config || return 1
-            project=$(resolve_project_from_cwd 2> /dev/null) || project=$(pick_bare_project) || return 1
         fi
         printf '%s' "Branch name: "
         read -r branch
@@ -453,45 +442,37 @@ _wt_add()
             error "Missing branch name."
             return 1
         fi
-    else
-        project=$(_wt_resolve_project "$project") || return 1
     fi
 
-    parse_config || return 1
-    local path
-    path=$(expand_path "$(get_project_prop "$project" "path")")
+    local wt_path
+    wt_path=$(_wt_path "$root" "$repo_type" "$branch")
 
-    if ! is_bare_repo "$path"; then
-        error "Project '$project' is not a bare repo."
-        return 1
-    fi
-
-    if [[ -d "$path/$branch" ]]; then
-        error "Worktree '$branch' already exists at $path/$branch"
+    if [[ -d $wt_path ]]; then
+        error "Worktree path already exists: $wt_path"
         return 1
     fi
 
     info "Fetching from origin..."
-    if ! git -C "$path" fetch origin 2> /dev/null; then
+    if ! git -C "$root" fetch origin 2> /dev/null; then
         warn "Could not fetch from origin. Continuing with local refs."
     fi
 
-    if git -C "$path" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+    if git -C "$root" show-ref --verify --quiet "refs/remotes/origin/$branch"; then
         # Remote branch exists
-        if git -C "$path" show-ref --verify --quiet "refs/heads/$branch"; then
+        if git -C "$root" show-ref --verify --quiet "refs/heads/$branch"; then
             # Local branch also exists -- just link it
-            git -C "$path" worktree add "$branch" "$branch"
+            git -C "$root" worktree add "$wt_path" "$branch"
         else
             # Create local branch tracking remote
-            git -C "$path" worktree add -b "$branch" "$branch" "origin/$branch"
-            git -C "$path" branch --set-upstream-to="origin/$branch" "$branch"
+            git -C "$root" worktree add -b "$branch" "$wt_path" "origin/$branch"
+            git -C "$root" branch --set-upstream-to="origin/$branch" "$branch"
         fi
     else
         # No remote branch -- create new branch from HEAD
-        git -C "$path" worktree add -b "$branch" "$branch"
+        git -C "$root" worktree add -b "$branch" "$wt_path"
     fi
 
-    info "Created worktree ${GREEN}$branch${RESET} at $path/$branch"
+    info "Created worktree ${GREEN}$branch${RESET} at $wt_path"
 }
 _wt_remove()
 {
@@ -505,50 +486,29 @@ _wt_remove()
     done
 
     local branch="${args[0]:-}"
-    local project="${args[1]:-}"
+
+    local repo_info root repo_type
+    repo_info=$(get_repo_info) || return 1
+    IFS=$'\t' read -r root repo_type <<< "$repo_info"
 
     if [[ -z $branch ]]; then
-        # Interactive mode: pick project and worktree
         if [[ ! -t 0 ]]; then
             error "Missing branch name."
-            printf '%s\n' "Usage: txs wt remove [--keep-branch] <branch> [project]" >&2
+            printf '%s\n' "Usage: txs wt remove [--keep-branch] <branch>" >&2
             return 1
         fi
-        if [[ -z $project ]]; then
-            parse_config || return 1
-            project=$(resolve_project_from_cwd 2> /dev/null) || project=$(pick_bare_project) || return 1
-        fi
-        parse_config || return 1
-        branch=$(pick_worktree "$project") || return 1
-    else
-        project=$(_wt_resolve_project "$project") || return 1
-        parse_config || return 1
+        branch=$(pick_worktree "$root" "$repo_type") || return 1
     fi
 
-    local path
-    path=$(expand_path "$(get_project_prop "$project" "path")")
+    local wt_path
+    wt_path=$(_wt_path "$root" "$repo_type" "$branch")
 
-    if ! is_bare_repo "$path"; then
-        error "Project '$project' is not a bare repo."
+    if [[ ! -d $wt_path ]]; then
+        error "Worktree '$branch' not found at $wt_path"
         return 1
     fi
 
-    if [[ ! -d "$path/$branch" ]]; then
-        error "Worktree '$branch' not found in $path"
-        return 1
-    fi
-
-    # Kill tmux window if open at this worktree
-    local session_name
-    session_name=$(get_project_prop "$project" "session_name")
-    if tmux_session_exists "$session_name"; then
-        local win_index
-        if win_index=$(find_window_by_path "$session_name" "$path/$branch"); then
-            tmux kill-window -t "=$session_name:$win_index" 2> /dev/null || true
-        fi
-    fi
-
-    if ! git -C "$path" worktree remove "$branch"; then
+    if ! git -C "$root" worktree remove "$wt_path"; then
         error "Failed to remove worktree '$branch'. It may have uncommitted changes."
         return 1
     fi
@@ -563,64 +523,49 @@ _wt_remove()
         local ans
         read -r ans
         if [[ $ans != [yY]* ]]; then
-            if git -C "$path" branch -D "$branch" 2> /dev/null; then
+            if git -C "$root" branch -D "$branch" 2> /dev/null; then
                 info "Deleted branch ${GREEN}$branch${RESET}"
             fi
         fi
     else
         # Non-interactive default: delete branch
-        if git -C "$path" branch -D "$branch" 2> /dev/null; then
+        if git -C "$root" branch -D "$branch" 2> /dev/null; then
             info "Deleted branch ${GREEN}$branch${RESET}"
         fi
     fi
 }
 _wt_list()
 {
-    local project="${1:-}"
-    if [[ -z $project ]]; then
-        _ls_worktrees
-        return
-    fi
-
-    parse_config || return 1
-    if [[ -z ${PROJECT_PATH[$project]:-} ]]; then
-        error "Project '$project' not found in config."
-        return 1
-    fi
-
-    local path
-    path=$(expand_path "$(get_project_prop "$project" "path")")
-    if ! is_bare_repo "$path"; then
-        error "Project '$project' is not a bare repo."
-        return 1
-    fi
+    local repo_info root repo_type
+    repo_info=$(get_repo_info) || return 1
+    IFS=$'\t' read -r root repo_type <<< "$repo_info"
 
     local found=false
     local wt_path wt_name
     while IFS=$'\t' read -r wt_path wt_name; do
         [[ -z $wt_path ]] && continue
         if [[ $found == false ]]; then
-            printf '%b\n' "${BOLD}Worktrees for $CYAN$project$RESET:"
+            printf '%b\n' "${BOLD}Worktrees for ${CYAN}$(basename "$root")$RESET:"
             printf '\n'
             found=true
         fi
         printf '%b\n' "  $wt_name  ${DIM}$wt_path$RESET"
-    done < <(get_project_worktrees "$path" | sort -t$'\t' -k2)
+    done < <(get_project_worktrees "$root" | sort -t$'\t' -k2)
 
     if [[ $found == false ]]; then
-        printf '%b\n' "${DIM}No worktrees found for $project.$RESET"
+        printf '%b\n' "${DIM}No worktrees found.$RESET"
     fi
 }
 cmd_wt()
 {
     local subcmd="${1:-}"
     case "$subcmd" in
-        add) _wt_add "${2:-}" "${3:-}" ;;
+        add) _wt_add "${2:-}" ;;
         remove)
             shift
             _wt_remove "$@"
             ;;
-        list) _wt_list "${2:-}" ;;
+        list) _wt_list ;;
         "") _wt_list ;;
         *)
             error "Unknown wt subcommand '$subcmd'."

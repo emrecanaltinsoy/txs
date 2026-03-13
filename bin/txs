@@ -8,9 +8,9 @@
 #   txs kill [name]              Kill a session (interactive picker when no arg)
 #   txs ls [sessions|projects|worktrees]
 #                                List sessions, projects, and/or worktrees
-#   txs wt add [branch] [project]     Create a worktree and branch
-#   txs wt remove [branch] [project]  Remove a worktree and delete branch
-#   txs wt list [project]             List worktrees
+#   txs wt add [branch]              Create a worktree and branch
+#   txs wt remove [branch]           Remove a worktree and delete branch
+#   txs wt list                      List worktrees
 #   txs add [path]               Add a directory to the config
 #   txs remove <name>            Remove a project from the config
 #   txs clone-bare <url> [name]  Clone repo as bare + worktree setup

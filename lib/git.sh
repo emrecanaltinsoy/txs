@@ -17,7 +17,6 @@ is_bare_repo()
 get_project_worktrees()
 {
     local path="$1"
-    is_bare_repo "$path" || return 0
 
     local line wt_path is_bare
     wt_path=""
@@ -38,67 +37,37 @@ get_project_worktrees()
     done < <(git -C "$path" worktree list --porcelain 2> /dev/null || true)
 }
 
-resolve_project_from_cwd()
+get_repo_info()
 {
-    # Find the bare repo root from $PWD (works from any worktree or subdirectory)
-    local bare_root=""
-
-    # Try git first: --git-common-dir returns the shared git dir (e.g. /path/.bare)
-    local common_dir
-    common_dir=$(git rev-parse --git-common-dir 2> /dev/null) || true
-    if [[ -n $common_dir ]]; then
-        # Resolve to absolute path
-        [[ $common_dir != /* ]] && common_dir=$(cd "$common_dir" && pwd -P)
-        # .bare dir is inside the project root
-        if [[ $(basename "$common_dir") == ".bare" ]]; then
-            bare_root=$(dirname "$common_dir")
-        fi
-    fi
-
-    # Fallback: walk up from $PWD looking for .bare/
-    if [[ -z $bare_root ]]; then
-        local dir="$PWD"
-        while [[ $dir != "/" ]]; do
-            if [[ -d "$dir/.bare" ]]; then
-                bare_root="$dir"
-                break
-            fi
-            dir=$(dirname "$dir")
-        done
-    fi
-
-    if [[ -z $bare_root ]]; then
-        error "Not inside a bare repo worktree."
+    # Detect repo root and type from the current directory.
+    # Output: <root>\t<type>   (type = "bare" or "normal")
+    # Returns 1 if not inside a git repo.
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        error "Not inside a git repository."
         return 1
     fi
 
-    local resolved
-    resolved=$(cd "$bare_root" && pwd -P)
+    local root
 
-    parse_config || return 1
-    for project in "${PROJECT_ORDER[@]}"; do
-        local project_path
-        project_path=$(expand_path "$(get_project_prop "$project" "path")")
-        # Resolve symlinks for comparison
-        project_path=$(cd "$project_path" && pwd -P) 2> /dev/null || continue
-        if [[ $project_path == "$resolved" ]]; then
-            printf '%s\n' "$project"
+    # Check for our bare layout (.bare/ directory)
+    local common_dir
+    common_dir=$(git rev-parse --git-common-dir 2> /dev/null) || true
+    if [[ -n $common_dir ]]; then
+        [[ $common_dir != /* ]] && common_dir=$(cd "$common_dir" && pwd -P)
+        if [[ $(basename "$common_dir") == ".bare" ]]; then
+            root=$(cd "$(dirname "$common_dir")" && pwd -P)
+            printf '%s\t%s\n' "$root" "bare"
             return 0
         fi
-    done
-    error "Directory '$resolved' is not a configured project."
-    return 1
-}
+    fi
 
-get_bare_projects()
-{
-    # List configured projects that are bare repos (one name per line)
-    # Requires: parse_config called beforehand
-    for project in "${PROJECT_ORDER[@]}"; do
-        local path
-        path=$(expand_path "$(get_project_prop "$project" "path")")
-        [[ -d $path ]] && is_bare_repo "$path" && printf '%s\n' "$project"
-    done
+    # Normal repo
+    root=$(git rev-parse --show-toplevel 2> /dev/null) || {
+        error "Could not determine repository root."
+        return 1
+    }
+    root=$(cd "$root" && pwd -P)
+    printf '%s\t%s\n' "$root" "normal"
 }
 
 repo_name_from_url()

@@ -3,59 +3,52 @@
 # ---------------------------------------------------------------------------
 # Reusable fzf pickers
 # ---------------------------------------------------------------------------
-pick_bare_project()
-{
-    if ! command -v fzf &> /dev/null; then
-        error "fzf is required for interactive mode."
-        return 1
-    fi
-    local projects
-    projects=$(get_bare_projects)
-    if [[ -z $projects ]]; then
-        error "No bare repo projects configured."
-        return 1
-    fi
-    local selected
-    selected=$(printf '%s\n' "$projects" | fzf \
-        --header="Pick a bare repo project (ESC to cancel)" \
-        --prompt="project> " \
-        --height="$TXS_FZF_HEIGHT" \
-        --layout=reverse \
-        --border \
-        --ansi) || return 1
-    [[ -z $selected ]] && return 1
-    printf '%s\n' "$selected"
-}
 pick_worktree()
 {
-    local project="$1"
+    local repo_root="$1"
+    local repo_type="${2:-bare}"
     if ! command -v fzf &> /dev/null; then
         error "fzf is required for interactive mode."
         return 1
     fi
-    local path
-    path=$(expand_path "$(get_project_prop "$project" "path")")
+    local repo_name
+    repo_name=$(basename "$repo_root")
     local worktrees
-    worktrees=$(get_project_worktrees "$path" | sort -t$'\t' -k2)
+    worktrees=$(get_project_worktrees "$repo_root" | sort -t$'\t' -k2)
+
+    # For normal repos, filter out the main worktree (path == repo_root)
+    if [[ $repo_type == "normal" ]]; then
+        local filtered=""
+        local wt_path wt_name
+        while IFS=$'\t' read -r wt_path wt_name; do
+            [[ -z $wt_path ]] && continue
+            local resolved
+            resolved=$(cd "$wt_path" && pwd -P) 2> /dev/null || continue
+            [[ $resolved == "$repo_root" ]] && continue
+            filtered+="$(printf '%s\t%s\n' "$wt_path" "$wt_name")"$'\n'
+        done <<< "$worktrees"
+        worktrees="${filtered%$'\n'}"
+    fi
+
     if [[ -z $worktrees ]]; then
-        error "No worktrees found for $project."
+        error "No worktrees found."
         return 1
     fi
     local selected
     selected=$(printf '%s\n' "$worktrees" | fzf \
         --delimiter=$'\t' \
         --with-nth=2 \
-        --header="Pick a worktree for $project (ESC to cancel)" \
+        --header="Pick a worktree (ESC to cancel)" \
         --prompt="worktree> " \
         --height="$TXS_FZF_HEIGHT" \
         --layout=reverse \
         --border \
         --ansi) || return 1
     [[ -z $selected ]] && return 1
-    # Return the worktree basename
+    # Return the branch name (strip <reponame>. prefix from directory basename)
     local wt_name
     IFS=$'\t' read -r _ wt_name <<< "$selected"
-    printf '%s\n' "$wt_name"
+    printf '%s\n' "${wt_name#"$repo_name".}"
 }
 
 # ---------------------------------------------------------------------------

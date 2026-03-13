@@ -8,24 +8,6 @@ _txs_projects() {
 	sed -n 's/^\[\([a-zA-Z0-9_.-]*\)\]$/\1/p' "$config" | grep -v '^DEFAULT$'
 }
 
-_txs_bare_projects() {
-	local config="${XDG_CONFIG_HOME:-$HOME/.config}/txs/projects.conf"
-	[[ -f "$config" ]] || return
-	local section="" line value
-	while IFS= read -r line; do
-		if [[ $line =~ '^\[([a-zA-Z0-9_.-]+)\]$' ]]; then
-			section="${match[1]}"
-			continue
-		fi
-		[[ $section == "DEFAULT" || -z $section ]] && continue
-		if [[ $line =~ '^path[[:space:]]*=[[:space:]]*(.*)' ]]; then
-			value="${match[1]}"
-			value="${value/#\~/$HOME}"
-			[[ -d "$value/.bare" ]] && printf '%s\n' "$section"
-		fi
-	done < "$config"
-}
-
 _txs_sessions() {
 	tmux list-sessions -F '#{session_name}' 2>/dev/null
 }
@@ -71,25 +53,6 @@ _txs() {
 				'list:List worktrees'
 			)
 			_describe 'wt subcommand' subcmds
-		else
-			case "${words[3]}" in
-			add | remove)
-				# Position 4 = branch (no completion), position 5 = project
-				if (( CURRENT == 5 )); then
-					local -a projects
-					projects=("${(@f)$(_txs_bare_projects)}")
-					[[ ${#projects[@]} -gt 0 ]] && _describe 'bare repo project' projects
-				fi
-				;;
-			list)
-				# Position 4 = project
-				if (( CURRENT == 4 )); then
-					local -a projects
-					projects=("${(@f)$(_txs_bare_projects)}")
-					[[ ${#projects[@]} -gt 0 ]] && _describe 'bare repo project' projects
-				fi
-				;;
-			esac
 		fi
 		;;
 	ls | list)

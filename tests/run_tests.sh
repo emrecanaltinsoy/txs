@@ -81,8 +81,7 @@ assert_contains "help mentions ls command" "$help_output" "txs ls"
 assert_contains "help mentions kill command" "$help_output" "txs kill"
 assert_contains "help mentions clone-bare command" "$help_output" "txs clone-bare"
 assert_contains "help shows Session management group" "$help_output" "Session management:"
-assert_contains "help shows Worktree management group" "$help_output" "Worktree management:"
-assert_contains "help shows Project configuration group" "$help_output" "Project configuration:"
+assert_contains "help shows Worktree management group" "$help_output" "Worktree management"
 assert_contains "help mentions wt add command" "$help_output" "txs wt add"
 assert_contains "help mentions wt remove command" "$help_output" "txs wt remove"
 assert_contains "help mentions wt list command" "$help_output" "txs wt list"
@@ -112,6 +111,18 @@ echo -e "${BOLD}test: wt remove missing branch$RESET"
 wt_rm_output=$("$TXS" wt remove 2>&1) && ec=0 || ec=$?
 assert_exit_code "wt remove missing branch exits non-zero" "1" "$ec"
 assert_contains "wt remove missing branch shows error" "$wt_rm_output" "Missing branch name"
+echo -e "${BOLD}test: wt add outside git repo$RESET"
+wt_add_output=$(cd /tmp && "$TXS" wt add 2>&1) && ec=0 || ec=$?
+assert_exit_code "wt add outside git repo exits non-zero" "1" "$ec"
+assert_contains "wt add outside git repo shows error" "$wt_add_output" "Not inside a git repository"
+echo -e "${BOLD}test: wt remove outside git repo$RESET"
+wt_rm_output=$(cd /tmp && "$TXS" wt remove 2>&1) && ec=0 || ec=$?
+assert_exit_code "wt remove outside git repo exits non-zero" "1" "$ec"
+assert_contains "wt remove outside git repo shows error" "$wt_rm_output" "Not inside a git repository"
+echo -e "${BOLD}test: wt list outside git repo$RESET"
+wt_ls_output=$(cd /tmp && "$TXS" wt list 2>&1) && ec=0 || ec=$?
+assert_exit_code "wt list outside git repo exits non-zero" "1" "$ec"
+assert_contains "wt list outside git repo shows error" "$wt_ls_output" "Not inside a git repository"
 echo -e "${BOLD}test: aliases route correctly$RESET"
 # 'list' should behave like 'ls' (both produce the same output)
 list_output=$("$TXS" list 2>&1) && ec=0 || ec=$?

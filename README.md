@@ -146,12 +146,10 @@ Session management:
   txs ls [sessions|projects|worktrees]
                                List sessions, projects, and/or worktrees
 
-Worktree management:
-  txs wt add [branch] [project]
-                               Create a worktree and branch
-  txs wt remove [branch] [project]
-                               Remove a worktree and delete branch
-  txs wt list [project]        List worktrees
+Worktree management (run from any git repo):
+  txs wt add [branch]          Create a worktree (prompts if omitted)
+  txs wt remove [branch]       Remove a worktree (picker if omitted)
+  txs wt list                  List worktrees
 
 Project configuration:
   txs add [path]               Add a directory to the config (default: .)
@@ -188,19 +186,21 @@ This creates `./repo` (or your custom folder name), stores git data in
 
 ### Worktree Management
 
-`txs wt` manages worktrees within bare repo projects. It respects the
-clone-bare folder structure, creating worktrees at the repo root alongside
-existing ones.
+`txs wt` manages worktrees for any git repository. Run it from inside the repo
+(or any of its worktrees). No configuration required.
+
+**Bare repos** (created via `txs clone-bare`): worktrees are placed inside the
+repo directory alongside existing ones.
+
+**Normal repos**: worktrees are created as sibling directories named
+`<repo>.<branch>`.
 
 ```sh
 # Create a worktree (fetches from origin first)
-txs wt add feature-login myproject
-
-# If you're inside a worktree, the project is auto-detected
 cd ~/projects/myproject/main
 txs wt add feature-login
 
-# Interactive: prompts for project (if not in a bare repo) and branch name
+# Interactive: prompts for branch name
 txs wt add
 
 # Remove a worktree and its branch
@@ -212,10 +212,7 @@ txs wt remove
 # Remove the worktree but keep the branch
 txs wt remove --keep-branch feature-login
 
-# List worktrees for a specific project
-txs wt list myproject
-
-# List all worktrees across all projects
+# List worktrees for the current repo
 txs wt list
 ```
 
@@ -223,10 +220,9 @@ When creating a worktree, txs checks for a matching remote branch first. If
 `origin/<branch>` exists, the local branch is created tracking it. Otherwise a
 new branch is created from HEAD.
 
-When removing, txs automatically kills any tmux window open at the worktree
-path before removing it. The branch is deleted by default; pass `--keep-branch`
-(or `-k`) to keep it. In interactive mode (no arguments), you are prompted to
-confirm branch deletion.
+When removing, the branch is deleted by default; pass `--keep-branch` (or `-k`)
+to keep it. In interactive mode (no arguments), you are prompted to confirm
+branch deletion. For normal repos, the main worktree cannot be removed.
 
 ## Keybindings
 
