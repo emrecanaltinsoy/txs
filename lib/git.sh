@@ -35,6 +35,10 @@ get_project_worktrees()
             bare) is_bare=true ;;
         esac
     done < <(git -C "$path" worktree list --porcelain 2> /dev/null || true)
+    # Flush last entry if output lacked a trailing blank line
+    if [[ -n $wt_path && $is_bare == false ]]; then
+        printf '%s\t%s\n' "$wt_path" "$(basename "$wt_path")"
+    fi
 }
 
 get_repo_info()
@@ -94,7 +98,9 @@ get_active_worktrees()
         if [[ -n $origin_url ]]; then
             repo_name=$(repo_name_from_url "$origin_url")
         else
-            [[ $git_dir != /* ]] && git_dir=$(realpath "$pane_path/$git_dir" 2> /dev/null || true)
+            if [[ $git_dir != /* ]]; then
+                git_dir=$(cd "$pane_path/$git_dir" 2> /dev/null && pwd -P) || true
+            fi
             [[ -z $git_dir ]] && continue
             case "$(basename "$git_dir")" in
                 .bare | .git) repo_name=$(basename "$(dirname "$git_dir")") ;;
@@ -120,5 +126,10 @@ get_active_worktrees()
                 bare) is_bare=true ;;
             esac
         done < <(git -C "$pane_path" worktree list --porcelain 2> /dev/null || true)
+        # Flush last entry if output lacked a trailing blank line
+        if [[ -n $wt_path && $is_bare == false && -z ${seen[$wt_path]:-} ]]; then
+            seen[$wt_path]=1
+            printf '%s\t%s\t%s - %s\n' "$session" "$wt_path" "$repo_name" "$(basename "$wt_path")"
+        fi
     done < <(tmux list-panes -a -F "#{session_name}|#{pane_current_path}" 2> /dev/null || true)
 }

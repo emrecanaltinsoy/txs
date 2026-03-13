@@ -254,7 +254,7 @@ cmd_add()
         return 1
     fi
     # Check for duplicate section
-    if [[ -f $CONFIG_FILE ]] && grep -Fxq "[$name]" "$CONFIG_FILE"; then
+    if [[ -f $CONFIG_FILE ]] && grep -Eq "^\[$name\][[:space:]]*$" "$CONFIG_FILE"; then
         error "Project '$name' already exists in $CONFIG_FILE"
         return 1
     fi
@@ -276,7 +276,7 @@ cmd_remove()
         return 1
     fi
     # Check if section exists
-    if ! grep -Fxq "[$project]" "$CONFIG_FILE"; then
+    if ! grep -Eq "^\[$project\][[:space:]]*$" "$CONFIG_FILE"; then
         error "Project '$project' not found in $CONFIG_FILE"
         return 1
     fi
@@ -289,6 +289,7 @@ cmd_remove()
     awk -v section="$project" '
         BEGIN { skip = 0 }
         /^\[/ {
+            gsub(/[[:space:]]+$/, "")
             if ($0 == "[" section "]") { skip = 1; next }
             else { skip = 0 }
         }
@@ -442,6 +443,11 @@ _wt_add()
             error "Missing branch name."
             return 1
         fi
+    fi
+
+    if ! git check-ref-format --branch "$branch" > /dev/null 2>&1; then
+        error "Invalid branch name: $branch"
+        return 1
     fi
 
     local wt_path
@@ -624,11 +630,11 @@ cmd_clone_bare()
         if git show-ref --verify --quiet "refs/heads/$default_branch"; then
             git worktree add "$folder_name.$default_branch" "$default_branch"
         else
-            git worktree add -b "$folder_name.$default_branch" "$default_branch" "origin/$default_branch"
+            git worktree add -b "$default_branch" "$folder_name.$default_branch" "origin/$default_branch"
         fi
 
         git branch --set-upstream-to="origin/$default_branch" "$default_branch"
-        git worktree lock "$default_branch"
+        git worktree lock "$folder_name.$default_branch"
 
         printf '%s\n' "---------------------------------------------------"
         info "Success! Setup complete in: $folder_name"

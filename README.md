@@ -111,11 +111,11 @@ on_create = tmux split-window -v -l 20
 | Key            | Required | Description                                                    |
 |----------------|----------|----------------------------------------------------------------|
 | `path`         | Yes      | Directory path for the project (`~` is expanded)               |
-| `session_name` | No       | Custom tmux session name (defaults to section name)            |
+| `session_name` | No       | Custom tmux session name (defaults to section name if empty)   |
 | `on_create`    | No       | Commands to run after session creation (supports multi-line)   |
 
-The `[DEFAULT]` section provides fallback values for all projects. Dots in
-session names are automatically replaced with dashes.
+The `[DEFAULT]` section provides fallback values for all projects. Dots and
+colons in session names are automatically replaced with dashes.
 
 ### Settings file
 

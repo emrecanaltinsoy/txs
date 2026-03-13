@@ -63,7 +63,7 @@ parse_config()
             last_key=""
             continue
         fi
-        if [[ $line =~ ^\[([a-zA-Z0-9_.-]+)\]$ ]]; then
+        if [[ $line =~ ^\[[[:space:]]*([a-zA-Z0-9_.-]+)[[:space:]]*\]$ ]]; then
             current_section="${BASH_REMATCH[1]}"
             last_key=""
             if [[ $current_section != "DEFAULT" ]]; then
@@ -119,7 +119,7 @@ get_project_prop()
         session_name)
             local name="${PROJECT_SESSION_NAME[$project]:-${DEFAULTS[session_name]:-}}"
             [[ -z $name ]] && name="$project"
-            printf '%s\n' "${name//./-}"
+            printf '%s\n' "${name//[.:]/-}"
             ;;
         on_create) printf '%s\n' "${PROJECT_ON_CREATE[$project]:-${DEFAULTS[on_create]:-}}" ;;
     esac

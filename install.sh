@@ -80,7 +80,10 @@ else
     fi
 fi
 info "Installing to $PREFIX..."
-make -C "$TXS_TMPDIR/txs" install PREFIX="$PREFIX"
+if ! make -C "$TXS_TMPDIR/txs" install PREFIX="$PREFIX"; then
+    error "Installation failed."
+    exit 1
+fi
 echo ""
 if command -v txs &> /dev/null; then
     info "Done! txs $(txs version 2> /dev/null || true) is ready."

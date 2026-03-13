@@ -26,7 +26,13 @@ set -euo pipefail
 # Resolve and source library files
 # ---------------------------------------------------------------------------
 
-TXS_ROOT="$(cd "$(dirname "$0")/.." && pwd -P)/lib/txs"
+_self="$0"
+while [[ -L $_self ]]; do
+	_dir="$(cd "$(dirname "$_self")" && pwd -P)"
+	_self="$(readlink "$_self")"
+	[[ $_self != /* ]] && _self="$_dir/$_self"
+done
+TXS_ROOT="$(cd "$(dirname "$_self")/.." && pwd -P)/lib/txs"
 
 # shellcheck source=../lib/log.sh
 source "${TXS_ROOT}/log.sh"
@@ -61,6 +67,37 @@ require_arg() {
 main() {
 	local cmd="${1:-}"
 
+	# Commands that don't need tmux
+	case "$cmd" in
+	help | --help | -h)
+		cmd_help
+		return
+		;;
+	version | --version | -v)
+		printf '%s\n' "txs ${TXS_VERSION}"
+		return
+		;;
+	config)
+		cmd_config "${2:-}"
+		return
+		;;
+	add)
+		cmd_add "${2:-.}"
+		return
+		;;
+	remove)
+		require_arg "${2:-}" "project name" "txs remove <project-name>" || return 1
+		cmd_remove "$2"
+		return
+		;;
+	esac
+
+	# Everything else needs tmux
+	if ! command -v tmux &>/dev/null; then
+		error "tmux is required but not installed."
+		return 1
+	fi
+
 	case "$cmd" in
 	ls | list)
 		cmd_ls "${2:-}"
@@ -81,25 +118,9 @@ main() {
 	kill)
 		cmd_kill "${2:-}"
 		;;
-	add)
-		cmd_add "${2:-.}"
-		;;
-	remove)
-		require_arg "${2:-}" "project name" "txs remove <project-name>" || return 1
-		cmd_remove "$2"
-		;;
 	clone-bare)
 		require_arg "${2:-}" "repository URL" "txs clone-bare <repo-url> [folder-name]" || return 1
 		cmd_clone_bare "$2" "${3:-}"
-		;;
-	config)
-		cmd_config "${2:-}"
-		;;
-	help | --help | -h)
-		cmd_help
-		;;
-	version | --version | -v)
-		printf '%s\n' "txs ${TXS_VERSION}"
 		;;
 	"")
 		cmd_interactive
