@@ -139,3 +139,51 @@ get_active_worktrees()
         done < <(_list_worktree_paths "$pane_path")
     done < <(tmux list-panes -a -F "#{session_name}|#{pane_current_path}" 2> /dev/null || true)
 }
+
+get_depth_projects()
+{
+    # Scan subdirectories up to max_depth looking for git repos.
+    # Stops descending into a directory once it is identified as a git repo.
+    # Usage: get_depth_projects <path> <max_depth>
+    # Output: one line per git repo: <abs_path> \t <basename>
+    local root="$1"
+    local max_depth="$2"
+
+    [[ -d $root ]] || return 0
+    [[ $max_depth -gt 0 ]] 2> /dev/null || return 0
+
+    _scan_depth_dir "$root" "$max_depth" 0
+}
+
+_scan_depth_dir()
+{
+    local dir="$1"
+    local max_depth="$2"
+    local current_depth="$3"
+
+    local next_depth=$(( current_depth + 1 ))
+    local subdir
+    for subdir in "$dir"/*/; do
+        [[ -d $subdir ]] || continue
+        local name
+        name=$(basename "$subdir")
+        # Skip hidden directories
+        [[ $name == .* ]] && continue
+        local abs_subdir
+        abs_subdir=$(cd "$subdir" && pwd -P)
+        # Check if this directory owns a git repo (not inherited from a parent)
+        local git_dir
+        git_dir=$(git -C "$abs_subdir" rev-parse --git-dir 2> /dev/null) || true
+        if [[ -n $git_dir ]]; then
+            [[ $git_dir != /* ]] && git_dir="$abs_subdir/$git_dir"
+            git_dir=$(cd "$git_dir" 2> /dev/null && pwd -P) || true
+        fi
+        if [[ -n $git_dir && ( $git_dir == "$abs_subdir"/* || $git_dir == "$abs_subdir" ) ]]; then
+            # This dir is a git repo — emit it and do not descend further
+            printf '%s\t%s\n' "$abs_subdir" "$name"
+        elif [[ $next_depth -lt $max_depth ]]; then
+            # Not a git repo yet and we have depth remaining — recurse
+            _scan_depth_dir "$abs_subdir" "$max_depth" "$next_depth"
+        fi
+    done
+}

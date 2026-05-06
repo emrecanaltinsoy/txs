@@ -7,6 +7,7 @@ TXS_SETTINGS_FILE="$CONFIG_DIR/config"
 declare -gA PROJECT_PATH
 declare -gA PROJECT_SESSION_NAME
 declare -gA PROJECT_ON_CREATE
+declare -gA PROJECT_DEPTH
 declare -ga PROJECT_ORDER=()
 declare -gA DEFAULTS
 _trim()
@@ -31,6 +32,7 @@ parse_config()
     PROJECT_PATH=()
     PROJECT_SESSION_NAME=()
     PROJECT_ON_CREATE=()
+    PROJECT_DEPTH=()
     PROJECT_ORDER=()
     DEFAULTS=()
     local current_section=""
@@ -90,6 +92,10 @@ parse_config()
                         warn "'path' in [DEFAULT] is not supported (line $line_num)"
                         last_key=""
                         ;;
+                    max_depth)
+                        warn "'max_depth' in [DEFAULT] is not supported (line $line_num)"
+                        last_key=""
+                        ;;
                     *)
                         last_key=""
                         warn "Unknown key '$key' at line $line_num"
@@ -100,6 +106,7 @@ parse_config()
                     path) PROJECT_PATH[$current_section]="$value" ;;
                     session_name) PROJECT_SESSION_NAME[$current_section]="$value" ;;
                     on_create) PROJECT_ON_CREATE[$current_section]="$value" ;;
+                    max_depth) PROJECT_DEPTH[$current_section]="$value" ;;
                     *)
                         last_key=""
                         warn "Unknown key '$key' at line $line_num"
@@ -127,6 +134,7 @@ get_project_prop()
             printf '%s\n' "${name//[.:]/-}"
             ;;
         on_create) printf '%s\n' "${PROJECT_ON_CREATE[$project]:-${DEFAULTS[on_create]:-}}" ;;
+        max_depth) printf '%s\n' "${PROJECT_DEPTH[$project]:-0}" ;;
     esac
 }
 expand_path()

@@ -67,23 +67,78 @@ cmd_interactive()
     active_sessions=$(get_active_sessions)
     fetch_session_windows
 
-    # Map session names back to project names
+    # Map session names back to project names (non-depth projects)
     local -A session_to_project=()
     for project in "${PROJECT_ORDER[@]}"; do
+        local depth
+        depth=$(get_project_prop "$project" "max_depth")
+        [[ $depth -gt 0 ]] 2> /dev/null && continue   # handled separately
         local sname
         sname=$(get_project_prop "$project" "session_name")
         session_to_project[$sname]="$project"
+    done
+
+    # Map session names to parent project for depth-discovered repos
+    # session basename → parent project name
+    local -A session_to_depth_project=()
+    local -A session_to_depth_path=()
+    for project in "${PROJECT_ORDER[@]}"; do
+        local depth
+        depth=$(get_project_prop "$project" "max_depth")
+        [[ $depth -gt 0 ]] 2> /dev/null || continue
+        local root
+        root=$(expand_path "$(get_project_prop "$project" "path")")
+        local dp_path dp_name
+        while IFS=$'\t' read -r dp_path dp_name; do
+            [[ -z $dp_path ]] && continue
+            if [[ -n ${session_to_depth_project[$dp_name]:-} ]]; then
+                warn "Depth project basename collision: '$dp_name' in both '${session_to_depth_project[$dp_name]}' and '$project'. '$project' will take precedence."
+            fi
+            session_to_depth_project[$dp_name]="$project"
+            session_to_depth_path[$dp_name]="$dp_path"
+        done < <(get_depth_projects "$root" "$depth")
     done
 
     # Collect entries: marker \t session_name \t project_name \t worktree_path \t display_label
     # Use "-" as placeholder for empty fields (IFS read collapses consecutive delimiters)
     local entries=()
     local -A seen_projects=()
+    local -A seen_depth_sessions=()
 
     # --- Active sessions ---
     if [[ -n $active_sessions ]]; then
         while IFS= read -r session; do
             local proj="${session_to_project[$session]:-}"
+            local depth_proj="${session_to_depth_project[$session]:-}"
+
+            # Depth-discovered active session
+            if [[ -z $proj && -n $depth_proj ]]; then
+                seen_depth_sessions[$session]=1
+                local dp_path="${session_to_depth_path[$session]:-}"
+                if [[ -n $dp_path && -d $dp_path ]] && is_bare_repo "$dp_path"; then
+                    # Depth-discovered bare repo: expand per worktree with * / space markers
+                    local wt_path wt_name
+                    while IFS=$'\t' read -r wt_path wt_name; do
+                        [[ -z $wt_path ]] && continue
+                        local marker=" "
+                        local matched_win
+                        matched_win=$(find_window_by_path "$session" "$wt_path") || true
+                        if [[ -n $matched_win ]]; then
+                            marker="*"
+                        fi
+                        local label
+                        label=$(printf '%s %-20s %s' "$marker" "[$depth_proj] $session - $wt_name" "[active]")
+                        entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "$marker" "$session" "$depth_proj" "$wt_path" "$label")")
+                    done < <(get_project_worktrees "$dp_path" | sort -t$'\t' -k2)
+                else
+                    local windows="${SESSION_WINDOWS[$session]:-}"
+                    local label
+                    label=$(printf '* %-20s [%s]' "[$depth_proj] $session" "$windows")
+                    entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "-" "$label")")
+                fi
+                continue
+            fi
+
             local display_name="${proj:-$session}"
 
             if [[ -n $proj ]]; then
@@ -120,9 +175,36 @@ cmd_interactive()
 
     # --- Inactive projects ---
     for project in "${PROJECT_ORDER[@]}"; do
-        [[ -n ${seen_projects[$project]:-} ]] && continue
+        local depth
+        depth=$(get_project_prop "$project" "max_depth")
         local path
         path=$(expand_path "$(get_project_prop "$project" "path")")
+
+        if [[ $depth -gt 0 ]] 2> /dev/null; then
+            # Depth project: expand into individual repos, skip already-active ones
+            local dp_path dp_name
+            while IFS=$'\t' read -r dp_path dp_name; do
+                [[ -z $dp_path ]] && continue
+                [[ -n ${seen_depth_sessions[$dp_name]:-} ]] && continue
+                if [[ -d $dp_path ]] && is_bare_repo "$dp_path"; then
+                    # Depth-discovered bare repo: expand per worktree
+                    local wt_path wt_name
+                    while IFS=$'\t' read -r wt_path wt_name; do
+                        [[ -z $wt_path ]] && continue
+                        local label
+                        label=$(printf '+ [%s] %s - %s' "$project" "$dp_name" "$wt_name")
+                        entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "+" "-" "$project" "$wt_path" "$label")")
+                    done < <(get_project_worktrees "$dp_path" | sort -t$'\t' -k2)
+                else
+                    local label
+                    label=$(printf '+ [%s] %s' "$project" "$dp_name")
+                    entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "+" "-" "$project" "$dp_path" "$label")")
+                fi
+            done < <(get_depth_projects "$path" "$depth")
+            continue
+        fi
+
+        [[ -n ${seen_projects[$project]:-} ]] && continue
 
         if [[ -d $path ]] && is_bare_repo "$path"; then
             # Bare repo: list worktrees with + marker
@@ -181,10 +263,28 @@ cmd_interactive()
             fi
             ;;
         '+')
-            # Inactive project
+            # Inactive project or depth-discovered repo
             if [[ -n $sel_wt_path ]]; then
-                # Bare repo worktree → attach with worktree selector
-                cmd_attach "$sel_project" "$(basename "$sel_wt_path")"
+                local basename_sel
+                basename_sel=$(basename "$sel_wt_path")
+                # Check if this entry belongs to a direct bare repo project
+                local proj_path
+                proj_path=$(expand_path "$(get_project_prop "$sel_project" "path")")
+                if [[ -d $proj_path ]] && is_bare_repo "$proj_path"; then
+                    # Direct bare repo project worktree
+                    cmd_attach "$sel_project" "$basename_sel"
+                else
+                    # Depth-discovered repo (normal or bare worktree)
+                    # For bare worktrees, sel_wt_path is the worktree itself;
+                    # the bare root is the dir whose worktrees include sel_wt_path.
+                    # We can just create the session at sel_wt_path directly.
+                    local on_create
+                    on_create=$(get_project_prop "$sel_project" "on_create")
+                    local session_name
+                    session_name=$(basename "$sel_wt_path")
+                    _ensure_session "$session_name" "$sel_wt_path" "$on_create" > /dev/null
+                    tmux_attach_or_switch "$session_name"
+                fi
             else
                 cmd_attach "$sel_project"
             fi
@@ -214,12 +314,32 @@ cmd_switch()
     parse_config || return 1
     fetch_session_windows
 
-    # Map session names back to project names
+    # Map session names back to project names (non-depth)
     local -A session_to_project=()
     for project in "${PROJECT_ORDER[@]}"; do
+        local depth
+        depth=$(get_project_prop "$project" "max_depth")
+        [[ $depth -gt 0 ]] 2> /dev/null && continue
         local sname
         sname=$(get_project_prop "$project" "session_name")
         session_to_project[$sname]="$project"
+    done
+
+    # Map session basenames to parent depth project
+    local -A session_to_depth_project=()
+    local -A session_to_depth_path=()
+    for project in "${PROJECT_ORDER[@]}"; do
+        local depth
+        depth=$(get_project_prop "$project" "max_depth")
+        [[ $depth -gt 0 ]] 2> /dev/null || continue
+        local root
+        root=$(expand_path "$(get_project_prop "$project" "path")")
+        local dp_path dp_name
+        while IFS=$'\t' read -r dp_path dp_name; do
+            [[ -z $dp_path ]] && continue
+            session_to_depth_project[$dp_name]="$project"
+            session_to_depth_path[$dp_name]="$dp_path"
+        done < <(get_depth_projects "$root" "$depth")
     done
 
     # Collect entries: marker \t session_name \t project_name \t worktree_path \t display_label
@@ -227,6 +347,32 @@ cmd_switch()
 
     while IFS= read -r session; do
         local proj="${session_to_project[$session]:-}"
+        local depth_proj="${session_to_depth_project[$session]:-}"
+
+        # Depth-discovered active session
+        if [[ -z $proj && -n $depth_proj ]]; then
+            local dp_path="${session_to_depth_path[$session]:-}"
+            if [[ -n $dp_path && -d $dp_path ]] && is_bare_repo "$dp_path"; then
+                # Depth-discovered bare repo: only open windows
+                local wt_path wt_name
+                while IFS=$'\t' read -r wt_path wt_name; do
+                    [[ -z $wt_path ]] && continue
+                    local matched_win
+                    matched_win=$(find_window_by_path "$session" "$wt_path") || true
+                    [[ -z $matched_win ]] && continue
+                    local label
+                    label=$(printf '* %-20s %s' "[$depth_proj] $session - $wt_name" "[active]")
+                    entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "$wt_path" "$label")")
+                done < <(get_project_worktrees "$dp_path" | sort -t$'\t' -k2)
+            else
+                local windows="${SESSION_WINDOWS[$session]:-}"
+                local label
+                label=$(printf '* %-20s [%s]' "[$depth_proj] $session" "$windows")
+                entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "-" "$label")")
+            fi
+            continue
+        fi
+
         local display_name="${proj:-$session}"
 
         if [[ -n $proj ]]; then
