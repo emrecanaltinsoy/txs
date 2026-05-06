@@ -349,6 +349,7 @@ USAGE:
 
   Session management:
     txs attach [name] [worktree] Attach to a session / open a worktree
+    txs switch                   Pick from open sessions/windows only
     txs kill [name]              Kill a session (interactive picker when no arg)
     txs ls [sessions|projects|worktrees]
                                  List sessions, projects, and/or worktrees

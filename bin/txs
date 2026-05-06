@@ -120,6 +120,9 @@ main() {
 		require_arg "${2:-}" "repository URL" "txs clone-bare <repo-url> [folder-name]" || return 1
 		cmd_clone_bare "$2" "${3:-}"
 		;;
+	switch)
+		cmd_switch
+		;;
 	"")
 		cmd_interactive
 		;;

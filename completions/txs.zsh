@@ -16,6 +16,7 @@ _txs() {
 	if (( CURRENT == 2 )); then
 		local -a session_cmds=(
 			'attach:Attach to a session / open a worktree'
+			'switch:Pick from open sessions/windows only'
 			'kill:Kill a session'
 			'ls:List sessions, projects, and/or worktrees'
 		)

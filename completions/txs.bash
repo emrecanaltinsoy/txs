@@ -19,7 +19,7 @@ _txs() {
 	# Completing the subcommand (first argument)
 	if [[ $COMP_CWORD -eq 1 ]]; then
 		# Primary commands + hidden aliases
-		mapfile -t COMPREPLY < <(compgen -W "attach ls kill wt add remove clone-bare config help version list sessions projects" -- "$cur")
+		mapfile -t COMPREPLY < <(compgen -W "attach switch ls kill wt add remove clone-bare config help version list sessions projects" -- "$cur")
 		return
 	fi
 
