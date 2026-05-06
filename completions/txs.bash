@@ -44,7 +44,7 @@ _txs() {
 		mapfile -t COMPREPLY < <(compgen -W "$(_txs_projects)" -- "$cur")
 		;;
 	kill)
-		mapfile -t COMPREPLY < <(compgen -W "$(_txs_sessions)" -- "$cur")
+		mapfile -t COMPREPLY < <(compgen -W "window $(_txs_sessions)" -- "$cur")
 		;;
 	esac
 }

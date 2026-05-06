@@ -199,9 +199,64 @@ cmd_attach()
     # Normal / non-git project: just switch to the session
     tmux_attach_or_switch "$session_name"
 }
+_kill_window()
+{
+    if ! command -v fzf &> /dev/null; then
+        error "fzf is required for interactive kill. Usage: txs kill window"
+        return 1
+    fi
+
+    local active_sessions
+    active_sessions=$(get_active_sessions)
+    if [[ -z $active_sessions ]]; then
+        printf '%b\n' "${DIM}No active tmux sessions.$RESET"
+        return 0
+    fi
+
+    # Build flat list: label \t session_name \t win_index
+    local entries=()
+    while IFS= read -r session; do
+        while IFS='|' read -r win_index win_name; do
+            [[ -z $win_index ]] && continue
+            local label
+            label=$(printf '%s — %s' "$session" "$win_name")
+            entries+=("$(printf '%s\t%s\t%s' "$label" "$session" "$win_index")")
+        done < <(tmux list-windows -t "=$session" -F "#{window_index}|#{window_name}" 2> /dev/null || true)
+    done <<< "$active_sessions"
+
+    if [[ ${#entries[@]} -eq 0 ]]; then
+        printf '%b\n' "${DIM}No open windows found.$RESET"
+        return 0
+    fi
+
+    local selected
+    selected=$(printf '%s\n' "${entries[@]}" | fzf \
+        --delimiter=$'\t' \
+        --with-nth=1 \
+        --header="Pick a window to kill (ESC to cancel)" \
+        --prompt="kill window> " \
+        --height="$TXS_FZF_HEIGHT" \
+        --layout=reverse \
+        --border \
+        --ansi) || return 0
+
+    [[ -z $selected ]] && return 0
+
+    local sel_label sel_session sel_win_index
+    IFS=$'\t' read -r sel_label sel_session sel_win_index <<< "$selected"
+
+    tmux kill-window -t "=$sel_session:$sel_win_index"
+    printf '%b\n' "Killed window $GREEN$sel_label$RESET."
+}
+
 cmd_kill()
 {
     local target="${1:-}"
+
+    if [[ $target == "window" ]]; then
+        _kill_window
+        return $?
+    fi
 
     if [[ -z $target ]]; then
         # Interactive picker
@@ -351,6 +406,7 @@ USAGE:
     txs attach [name] [worktree] Attach to a session / open a worktree
     txs switch                   Pick from open sessions/windows only
     txs kill [name]              Kill a session (interactive picker when no arg)
+    txs kill window              Kill a specific window across all sessions
     txs ls [sessions|projects|worktrees]
                                  List sessions, projects, and/or worktrees
 

@@ -80,9 +80,15 @@ _txs() {
 		[[ ${#projects[@]} -gt 0 ]] && _describe 'project' projects
 		;;
 	kill)
-		local -a sessions
-		sessions=("${(@f)$(_txs_sessions)}")
-		[[ ${#sessions[@]} -gt 0 ]] && _describe 'session' sessions
+		if (( CURRENT == 3 )); then
+			local -a kill_subcmds=(
+				'window:Kill a specific window across all sessions'
+			)
+			local -a sessions
+			sessions=("${(@f)$(_txs_sessions)}")
+			_describe 'subcommand' kill_subcmds
+			[[ ${#sessions[@]} -gt 0 ]] && _describe 'session' sessions
+		fi
 		;;
 	esac
 }
