@@ -88,7 +88,7 @@ _ls_projects()
             while IFS=$'\t' read -r dp_path dp_name; do
                 [[ -z $dp_path ]] && continue
                 [[ -n ${explicit_project_paths[$dp_path]:-} ]] && continue
-                [[ "${depth_name_to_project[$dp_name]:-}" != "$project" ]] && continue
+                [[ ${depth_name_to_project[$dp_name]:-} != "$project" ]] && continue
                 if printf '%s\n' "$active_sessions" | grep -Fqx "$dp_name"; then
                     status="${GREEN}active$RESET"
                 else

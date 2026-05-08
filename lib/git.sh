@@ -161,7 +161,7 @@ _scan_depth_dir()
     local max_depth="$2"
     local current_depth="$3"
 
-    local next_depth=$(( current_depth + 1 ))
+    local next_depth=$((current_depth + 1))
     local subdir
     for subdir in "$dir"/*/; do
         [[ -d $subdir ]] || continue
@@ -178,7 +178,7 @@ _scan_depth_dir()
             [[ $git_dir != /* ]] && git_dir="$abs_subdir/$git_dir"
             git_dir=$(cd "$git_dir" 2> /dev/null && pwd -P) || true
         fi
-        if [[ -n $git_dir && ( $git_dir == "$abs_subdir"/* || $git_dir == "$abs_subdir" ) ]]; then
+        if [[ -n $git_dir && ($git_dir == "$abs_subdir"/* || $git_dir == "$abs_subdir") ]]; then
             # This dir is a git repo — emit it and do not descend further
             printf '%s\t%s\n' "$abs_subdir" "$name"
         elif [[ $next_depth -lt $max_depth ]]; then

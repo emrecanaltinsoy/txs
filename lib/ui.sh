@@ -74,7 +74,7 @@ cmd_interactive()
     for project in "${PROJECT_ORDER[@]}"; do
         local depth
         depth=$(get_project_prop "$project" "max_depth")
-        [[ $depth -gt 0 ]] 2> /dev/null && continue   # handled separately
+        [[ $depth -gt 0 ]] 2> /dev/null && continue # handled separately
         local sname
         sname=$(get_project_prop "$project" "session_name")
         session_to_project[$sname]="$project"
@@ -193,7 +193,7 @@ cmd_interactive()
                 # Skip if this path is also an explicit (non-depth) project
                 [[ -n ${explicit_project_paths[$dp_path]:-} ]] && continue
                 # Only emit if this project is the designated owner for this path (last wins)
-                [[ "${session_to_depth_project[$dp_name]:-}" != "$project" ]] && continue
+                [[ ${session_to_depth_project[$dp_name]:-} != "$project" ]] && continue
                 if [[ -d $dp_path ]] && is_bare_repo "$dp_path"; then
                     # Depth-discovered bare repo: expand per worktree
                     local wt_path wt_name
@@ -401,7 +401,7 @@ cmd_switch()
                     [[ -z $wt_path ]] && continue
                     local matched_win
                     matched_win=$(find_window_by_path "$session" "$wt_path") || true
-                    [[ -z $matched_win ]] && continue   # skip worktrees with no open window
+                    [[ -z $matched_win ]] && continue # skip worktrees with no open window
                     local label
                     label=$(printf '* %-20s %s' "$display_name - $wt_name" "[active]")
                     entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "$proj" "$wt_path" "$label")")
