@@ -68,7 +68,9 @@ cmd_interactive()
     fetch_session_windows
 
     # Map session names back to project names (non-depth projects)
+    # Also build a set of resolved paths for explicit projects so depth scans can skip them
     local -A session_to_project=()
+    local -A explicit_project_paths=()
     for project in "${PROJECT_ORDER[@]}"; do
         local depth
         depth=$(get_project_prop "$project" "max_depth")
@@ -76,6 +78,9 @@ cmd_interactive()
         local sname
         sname=$(get_project_prop "$project" "session_name")
         session_to_project[$sname]="$project"
+        local epath
+        epath=$(expand_path "$(get_project_prop "$project" "path")")
+        [[ -n $epath ]] && explicit_project_paths[$epath]="$project"
     done
 
     # Map session names to parent project for depth-discovered repos
@@ -91,9 +96,8 @@ cmd_interactive()
         local dp_path dp_name
         while IFS=$'\t' read -r dp_path dp_name; do
             [[ -z $dp_path ]] && continue
-            if [[ -n ${session_to_depth_project[$dp_name]:-} ]]; then
-                warn "Depth project basename collision: '$dp_name' in both '${session_to_depth_project[$dp_name]}' and '$project'. '$project' will take precedence."
-            fi
+            # Skip if this path is also an explicit (non-depth) project
+            [[ -n ${explicit_project_paths[$dp_path]:-} ]] && continue
             session_to_depth_project[$dp_name]="$project"
             session_to_depth_path[$dp_name]="$dp_path"
         done < <(get_depth_projects "$root" "$depth")
@@ -186,6 +190,10 @@ cmd_interactive()
             while IFS=$'\t' read -r dp_path dp_name; do
                 [[ -z $dp_path ]] && continue
                 [[ -n ${seen_depth_sessions[$dp_name]:-} ]] && continue
+                # Skip if this path is also an explicit (non-depth) project
+                [[ -n ${explicit_project_paths[$dp_path]:-} ]] && continue
+                # Only emit if this project is the designated owner for this path (last wins)
+                [[ "${session_to_depth_project[$dp_name]:-}" != "$project" ]] && continue
                 if [[ -d $dp_path ]] && is_bare_repo "$dp_path"; then
                     # Depth-discovered bare repo: expand per worktree
                     local wt_path wt_name
@@ -205,6 +213,7 @@ cmd_interactive()
         fi
 
         [[ -n ${seen_projects[$project]:-} ]] && continue
+        [[ -d $path ]] || continue
 
         if [[ -d $path ]] && is_bare_repo "$path"; then
             # Bare repo: list worktrees with + marker
@@ -316,6 +325,7 @@ cmd_switch()
 
     # Map session names back to project names (non-depth)
     local -A session_to_project=()
+    local -A explicit_project_paths=()
     for project in "${PROJECT_ORDER[@]}"; do
         local depth
         depth=$(get_project_prop "$project" "max_depth")
@@ -323,6 +333,9 @@ cmd_switch()
         local sname
         sname=$(get_project_prop "$project" "session_name")
         session_to_project[$sname]="$project"
+        local epath
+        epath=$(expand_path "$(get_project_prop "$project" "path")")
+        [[ -n $epath ]] && explicit_project_paths[$epath]="$project"
     done
 
     # Map session basenames to parent depth project
@@ -337,6 +350,8 @@ cmd_switch()
         local dp_path dp_name
         while IFS=$'\t' read -r dp_path dp_name; do
             [[ -z $dp_path ]] && continue
+            # Skip if this path is also an explicit (non-depth) project
+            [[ -n ${explicit_project_paths[$dp_path]:-} ]] && continue
             session_to_depth_project[$dp_name]="$project"
             session_to_depth_path[$dp_name]="$dp_path"
         done < <(get_depth_projects "$root" "$depth")

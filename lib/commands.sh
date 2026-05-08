@@ -46,9 +46,60 @@ _ls_projects()
     active_sessions=$(get_active_sessions)
     printf '%b\n' "${BOLD}Configured projects:$RESET"
     printf '\n'
+
+    # Build set of explicit project paths for dedup (same logic as ui.sh)
+    local -A explicit_project_paths=()
     for project in "${PROJECT_ORDER[@]}"; do
-        local path session_name status
-        path=$(get_project_prop "$project" "path")
+        local depth
+        depth=$(get_project_prop "$project" "max_depth")
+        [[ $depth -gt 0 ]] 2> /dev/null && continue
+        local epath
+        epath=$(expand_path "$(get_project_prop "$project" "path")")
+        [[ -n $epath ]] && explicit_project_paths[$epath]="$project"
+    done
+
+    # Pre-pass: for depth projects, record which project owns each discovered basename (last wins)
+    local -A depth_name_to_project=()
+    local -A depth_name_to_path=()
+    for project in "${PROJECT_ORDER[@]}"; do
+        local depth
+        depth=$(get_project_prop "$project" "max_depth")
+        [[ $depth -gt 0 ]] 2> /dev/null || continue
+        local root
+        root=$(expand_path "$(get_project_prop "$project" "path")")
+        local dp_path dp_name
+        while IFS=$'\t' read -r dp_path dp_name; do
+            [[ -z $dp_path ]] && continue
+            [[ -n ${explicit_project_paths[$dp_path]:-} ]] && continue
+            depth_name_to_project[$dp_name]="$project"
+            depth_name_to_path[$dp_name]="$dp_path"
+        done < <(get_depth_projects "$root" "$depth")
+    done
+
+    for project in "${PROJECT_ORDER[@]}"; do
+        local path session_name status depth
+        path=$(expand_path "$(get_project_prop "$project" "path")")
+        depth=$(get_project_prop "$project" "max_depth")
+
+        if [[ $depth -gt 0 ]] 2> /dev/null; then
+            # Depth project: print header then each discovered repo
+            printf '%b\n' "  $CYAN$project$RESET  ${DIM}[depth=$depth]$RESET  $path"
+            local dp_path dp_name
+            while IFS=$'\t' read -r dp_path dp_name; do
+                [[ -z $dp_path ]] && continue
+                [[ -n ${explicit_project_paths[$dp_path]:-} ]] && continue
+                [[ "${depth_name_to_project[$dp_name]:-}" != "$project" ]] && continue
+                if printf '%s\n' "$active_sessions" | grep -Fqx "$dp_name"; then
+                    status="${GREEN}active$RESET"
+                else
+                    status="${DIM}inactive$RESET"
+                fi
+                printf '%b\n' "    $dp_name  [$status]  $dp_path"
+            done < <(get_depth_projects "$path" "$depth")
+            continue
+        fi
+
+        [[ -d $path ]] || continue
         session_name=$(get_project_prop "$project" "session_name")
         if printf '%s\n' "$active_sessions" | grep -Fqx "$session_name"; then
             status="${GREEN}active$RESET"
@@ -66,6 +117,7 @@ _ls_worktrees()
         local path
         path=$(expand_path "$(get_project_prop "$project" "path")")
         [[ -d $path ]] || continue
+        is_bare_repo "$path" || continue
         local wt_path wt_name
         while IFS=$'\t' read -r wt_path wt_name; do
             [[ -z $wt_path ]] && continue

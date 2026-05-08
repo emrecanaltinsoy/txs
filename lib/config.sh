@@ -73,7 +73,11 @@ parse_config()
             current_section="${BASH_REMATCH[1]}"
             last_key=""
             if [[ $current_section != "DEFAULT" ]]; then
-                PROJECT_ORDER+=("$current_section")
+                local new_order=()
+                for entry in "${PROJECT_ORDER[@]}"; do
+                    [[ $entry != "$current_section" ]] && new_order+=("$entry")
+                done
+                PROJECT_ORDER=("${new_order[@]}" "$current_section")
             fi
             continue
         fi
