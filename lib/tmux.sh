@@ -8,6 +8,11 @@ tmux_session_exists()
 {
     tmux has-session -t "=$1" 2> /dev/null
 }
+sanitize_session_name()
+{
+    # tmux replaces '.' and ':' with '_' in session names
+    printf '%s' "${1//./_}" | tr ':' '_'
+}
 tmux_attach_or_switch()
 {
     local session_name="$1"

@@ -135,7 +135,7 @@ get_project_prop()
         session_name)
             local name="${PROJECT_SESSION_NAME[$project]:-${DEFAULTS[session_name]:-}}"
             [[ -z $name ]] && name="$project"
-            printf '%s\n' "${name//[.:]/-}"
+            printf '%s\n' "${name//[.:]/_}"
             ;;
         on_create) printf '%s\n' "${PROJECT_ON_CREATE[$project]:-${DEFAULTS[on_create]:-}}" ;;
         max_depth) printf '%s\n' "${PROJECT_DEPTH[$project]:-0}" ;;

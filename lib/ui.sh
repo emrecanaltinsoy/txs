@@ -290,7 +290,7 @@ cmd_interactive()
                     local on_create
                     on_create=$(get_project_prop "$sel_project" "on_create")
                     local session_name
-                    session_name=$(basename "$sel_wt_path")
+                    session_name=$(sanitize_session_name "$(basename "$sel_wt_path")")
                     _ensure_session "$session_name" "$sel_wt_path" "$on_create" > /dev/null
                     tmux_attach_or_switch "$session_name"
                 fi
