@@ -42,7 +42,7 @@ var wtCmd = &cobra.Command{
 		case "list", "ls":
 			return wtList()
 		default:
-			return fmt.Errorf("unknown wt subcommand '%s'. Use: add, remove, list", sub)
+			return fmt.Errorf("Unknown wt subcommand '%s'. Use: add, remove, list", sub)
 		}
 	},
 }
@@ -55,7 +55,7 @@ func getRepoInfo() (root, repoType string, err error) {
 	// Check for .bare layout
 	commonDir, err2 := exec.Command("git", "-C", cwd, "rev-parse", "--git-common-dir").Output()
 	if err2 != nil {
-		return "", "", fmt.Errorf("not inside a git repository")
+		return "", "", fmt.Errorf("Not inside a git repository")
 	}
 	commonDirStr := strings.TrimSpace(string(commonDir))
 	if !strings.HasPrefix(commonDirStr, "/") {
@@ -97,11 +97,11 @@ func wtAdd(branch string) error {
 		fmt.Print("Branch name: ")
 		scanner := bufio.NewScanner(os.Stdin)
 		if !scanner.Scan() {
-			return fmt.Errorf("missing branch name")
+			return fmt.Errorf("Missing branch name")
 		}
 		branch = strings.TrimSpace(scanner.Text())
 		if branch == "" {
-			return fmt.Errorf("missing branch name")
+			return fmt.Errorf("Missing branch name")
 		}
 	}
 
@@ -158,11 +158,11 @@ func wtRemove(branch string, keepBranch bool) error {
 		fmt.Print("Branch to remove: ")
 		scanner := bufio.NewScanner(os.Stdin)
 		if !scanner.Scan() {
-			return fmt.Errorf("missing branch name")
+			return fmt.Errorf("Missing branch name")
 		}
 		branch = strings.TrimSpace(scanner.Text())
 		if branch == "" {
-			return fmt.Errorf("missing branch name")
+			return fmt.Errorf("Missing branch name")
 		}
 	}
 

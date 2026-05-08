@@ -28,7 +28,7 @@ var configCmd = &cobra.Command{
 		case "settings":
 			path = config.SettingsFile()
 		default:
-			return fmt.Errorf("unknown config target '%s'. Use: projects, settings", target)
+			return fmt.Errorf("Unknown config target '%s'. Use: projects, settings", target)
 		}
 
 		// Ensure the file exists

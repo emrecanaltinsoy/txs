@@ -15,7 +15,15 @@ import (
 var cloneBareCmd = &cobra.Command{
 	Use:   "clone-bare <url> [name]",
 	Short: "Clone a repository as a bare repo with worktree setup",
-	Args:  cobra.RangeArgs(1, 2),
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return fmt.Errorf("Missing repository URL")
+		}
+		if len(args) > 2 {
+			return fmt.Errorf("accepts at most 2 args, received %d", len(args))
+		}
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		url := args[0]
 		name := ""

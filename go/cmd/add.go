@@ -41,7 +41,12 @@ var addCmd = &cobra.Command{
 var removeCmd = &cobra.Command{
 	Use:   "remove <project>",
 	Short: "Remove a project from projects.conf",
-	Args:  cobra.ExactArgs(1),
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return fmt.Errorf("Missing project name")
+		}
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
 		if err := config.RemoveProject(config.ProjectsFile(), name); err != nil {

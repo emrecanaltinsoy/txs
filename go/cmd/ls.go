@@ -45,7 +45,7 @@ var lsCmd = &cobra.Command{
 		case "worktrees":
 			return lsWorktrees()
 		default:
-			return fmt.Errorf("unknown filter '%s'. Use: sessions, projects, worktrees", filter)
+			return fmt.Errorf("Unknown filter '%s'. Use: sessions, projects, worktrees", filter)
 		}
 	},
 }
