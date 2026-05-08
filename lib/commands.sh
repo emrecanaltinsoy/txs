@@ -60,7 +60,6 @@ _ls_projects()
 
     # Pre-pass: for depth projects, record which project owns each discovered basename (last wins)
     local -A depth_name_to_project=()
-    local -A depth_name_to_path=()
     for project in "${PROJECT_ORDER[@]}"; do
         local depth
         depth=$(get_project_prop "$project" "max_depth")
@@ -72,7 +71,6 @@ _ls_projects()
             [[ -z $dp_path ]] && continue
             [[ -n ${explicit_project_paths[$dp_path]:-} ]] && continue
             depth_name_to_project[$dp_name]="$project"
-            depth_name_to_path[$dp_name]="$dp_path"
         done < <(get_depth_projects "$root" "$depth")
     done
 
