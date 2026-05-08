@@ -24,7 +24,7 @@ error()
 {
     printf '%b %b\n' "${RED}Error:" "${RESET}$*" >&2
 }
-for cmd in git make install; do
+for cmd in git make install go; do
     if ! command -v "$cmd" &> /dev/null; then
         error "'$cmd' is required but not found."
         exit 1
