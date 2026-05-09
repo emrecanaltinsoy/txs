@@ -295,6 +295,24 @@ _kill_window()
     local sel_label sel_session sel_win_index
     IFS=$'\t' read -r sel_label sel_session sel_win_index <<< "$selected"
 
+    # If killing the currently active window, navigate away first
+    if is_inside_tmux; then
+        local current_session current_win_index
+        current_session=$(tmux display-message -p "#{session_name}" 2> /dev/null || true)
+        current_win_index=$(tmux display-message -p "#{window_index}" 2> /dev/null || true)
+        if [[ $sel_session == "$current_session" && $sel_win_index == "$current_win_index" ]]; then
+            local win_count
+            win_count=$(tmux list-windows -t "=$sel_session" 2> /dev/null | wc -l)
+            if [[ $win_count -le 1 ]]; then
+                # Last window in session — switch to last active session
+                tmux switch-client -l 2> /dev/null || true
+            else
+                # Other windows exist — switch to last active window
+                tmux last-window -t "=$sel_session" 2> /dev/null || true
+            fi
+        fi
+    fi
+
     tmux kill-window -t "=$sel_session:$sel_win_index"
     printf '%b\n' "Killed window $GREEN$sel_label$RESET."
 }
@@ -343,13 +361,15 @@ cmd_kill()
         local current_session
         current_session=$(tmux display-message -p "#{session_name}" 2> /dev/null || true)
         if [[ $current_session == "$target" ]]; then
-            local remaining
-            remaining=$(get_active_sessions | grep -Fxv "$target" || true)
-            if [[ -n $remaining ]]; then
-                # Switch parent client to the first remaining session
-                local next
-                next=$(head -n 1 <<< "$remaining")
-                tmux switch-client -t "=$next" 2> /dev/null || true
+            # Try to switch to the last active session; fall back to any remaining
+            if ! tmux switch-client -l 2> /dev/null; then
+                local remaining
+                remaining=$(get_active_sessions | grep -Fxv "$target" || true)
+                if [[ -n $remaining ]]; then
+                    local next
+                    next=$(head -n 1 <<< "$remaining")
+                    tmux switch-client -t "=$next" 2> /dev/null || true
+                fi
             fi
         fi
     fi
