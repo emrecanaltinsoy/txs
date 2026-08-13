@@ -1,6 +1,27 @@
 # Sourced by bin/txs -- not meant to be executed directly
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+# depth_project_tag ROOT DP_PATH
+# Returns the relative parent path from ROOT to DP_PATH, e.g.:
+#   ROOT=~/Projects  DP_PATH=~/Projects/proj1          -> Projects
+#   ROOT=~/Projects  DP_PATH=~/Projects/SALLY/api       -> SALLY
+#   ROOT=~/Projects  DP_PATH=~/Projects/SALLY/back/api  -> SALLY/back
+depth_project_tag() {
+    local root="$1" dp_path="$2"
+    local relative="${dp_path#"$root"/}"
+    local parent
+    parent=$(dirname "$relative")
+    if [[ $parent == "." ]]; then
+        basename "$root"
+    else
+        printf '%s' "$parent"
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # Reusable fzf pickers
 # ---------------------------------------------------------------------------
 pick_worktree()
@@ -119,6 +140,10 @@ cmd_interactive()
             if [[ -z $proj && -n $depth_proj ]]; then
                 seen_depth_sessions[$session]=1
                 local dp_path="${session_to_depth_path[$session]:-}"
+                local _tag_root
+                _tag_root=$(expand_path "$(get_project_prop "$depth_proj" "path")")
+                local tag
+                tag=$(depth_project_tag "$_tag_root" "$dp_path")
                 if [[ -n $dp_path && -d $dp_path ]] && is_bare_repo "$dp_path"; then
                     # Depth-discovered bare repo: expand per worktree with * / space markers
                     local wt_path wt_name
@@ -131,13 +156,13 @@ cmd_interactive()
                             marker="*"
                         fi
                         local label
-                        label=$(printf '%s %-20s %s' "$marker" "[$depth_proj] $session - $wt_name" "[active]")
+                        label=$(printf '%s %-20s %s' "$marker" "[$tag] $session - $wt_name" "[active]")
                         entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "$marker" "$session" "$depth_proj" "$wt_path" "$label")")
                     done < <(get_project_worktrees "$dp_path" | sort -t$'\t' -k2)
                 else
                     local windows="${SESSION_WINDOWS[$session]:-}"
                     local label
-                    label=$(printf '* %-20s [%s]' "[$depth_proj] $session" "$windows")
+                    label=$(printf '* %-20s [%s]' "[$tag] $session" "$windows")
                     entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "-" "$label")")
                 fi
                 continue
@@ -194,18 +219,20 @@ cmd_interactive()
                 [[ -n ${explicit_project_paths[$dp_path]:-} ]] && continue
                 # Only emit if this project is the designated owner for this path (last wins)
                 [[ ${session_to_depth_project[$dp_name]:-} != "$project" ]] && continue
+                local tag
+                tag=$(depth_project_tag "$path" "$dp_path")
                 if [[ -d $dp_path ]] && is_bare_repo "$dp_path"; then
                     # Depth-discovered bare repo: expand per worktree
                     local wt_path wt_name
                     while IFS=$'\t' read -r wt_path wt_name; do
                         [[ -z $wt_path ]] && continue
                         local label
-                        label=$(printf '+ [%s] %s - %s' "$project" "$dp_name" "$wt_name")
+                        label=$(printf '+ [%s] %s - %s' "$tag" "$dp_name" "$wt_name")
                         entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "+" "-" "$project" "$wt_path" "$label")")
                     done < <(get_project_worktrees "$dp_path" | sort -t$'\t' -k2)
                 else
                     local label
-                    label=$(printf '+ [%s] %s' "$project" "$dp_name")
+                    label=$(printf '+ [%s] %s' "$tag" "$dp_name")
                     entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "+" "-" "$project" "$dp_path" "$label")")
                 fi
             done < <(get_depth_projects "$path" "$depth")
@@ -367,6 +394,10 @@ cmd_switch()
         # Depth-discovered active session
         if [[ -z $proj && -n $depth_proj ]]; then
             local dp_path="${session_to_depth_path[$session]:-}"
+            local _tag_root
+            _tag_root=$(expand_path "$(get_project_prop "$depth_proj" "path")")
+            local tag
+            tag=$(depth_project_tag "$_tag_root" "$dp_path")
             if [[ -n $dp_path && -d $dp_path ]] && is_bare_repo "$dp_path"; then
                 # Depth-discovered bare repo: only open windows
                 local wt_path wt_name
@@ -376,13 +407,13 @@ cmd_switch()
                     matched_win=$(find_window_by_path "$session" "$wt_path") || true
                     [[ -z $matched_win ]] && continue
                     local label
-                    label=$(printf '* %-20s %s' "[$depth_proj] $session - $wt_name" "[active]")
+                    label=$(printf '* %-20s %s' "[$tag] $session - $wt_name" "[active]")
                     entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "$wt_path" "$label")")
                 done < <(get_project_worktrees "$dp_path" | sort -t$'\t' -k2)
             else
                 local windows="${SESSION_WINDOWS[$session]:-}"
                 local label
-                label=$(printf '* %-20s [%s]' "[$depth_proj] $session" "$windows")
+                label=$(printf '* %-20s [%s]' "[$tag] $session" "$windows")
                 entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "-" "$label")")
             fi
             continue

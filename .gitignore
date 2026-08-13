@@ -17,3 +17,7 @@ Thumbs.db
 
 # OpenCode
 .opencode
+
+graphify-out/**
+.pi
+
