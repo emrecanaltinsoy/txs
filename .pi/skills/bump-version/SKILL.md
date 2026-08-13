@@ -1,6 +1,10 @@
 ---
 name: bump-version
-description: Bump TXS_VERSION in lib/config.sh with semantic versioning, commit as "chore(release): vX.Y.Z", and create a matching git tag. Use when the user says "release", "bump version", "new version", "cut a release", or invokes /bump-version.
+description: >-
+  Bump TXS_VERSION in lib/config.sh with semantic versioning, commit as
+  "chore(release): vX.Y.Z", and create a matching git tag. Use when the user
+  says "release", "bump version", "new version", "cut a release", or invokes
+  /bump-version.
 ---
 
 # bump-version
