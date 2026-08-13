@@ -19,5 +19,7 @@ Thumbs.db
 .opencode
 
 graphify-out/**
-.pi
+.pi/**
+!.pi/skills/
+!.pi/skills/**
 
