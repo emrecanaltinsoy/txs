@@ -7,9 +7,10 @@
 # depth_project_tag ROOT DP_PATH
 # Returns the relative parent path from ROOT to DP_PATH, e.g.:
 #   ROOT=~/Projects  DP_PATH=~/Projects/proj1          -> Projects
-#   ROOT=~/Projects  DP_PATH=~/Projects/SALLY/api       -> SALLY
-#   ROOT=~/Projects  DP_PATH=~/Projects/SALLY/back/api  -> SALLY/back
-depth_project_tag() {
+#   ROOT=~/Projects  DP_PATH=~/Projects/PROJ2/api       -> PROJ2
+#   ROOT=~/Projects  DP_PATH=~/Projects/PROJ2/back/api  -> PROJ2/back
+depth_project_tag()
+{
     local root="$1" dp_path="$2"
     local relative="${dp_path#"$root"/}"
     local parent
