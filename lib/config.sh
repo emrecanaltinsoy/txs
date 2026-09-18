@@ -4,12 +4,12 @@ TXS_VERSION="0.7.1"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/txs"
 CONFIG_FILE="$CONFIG_DIR/projects.conf"
 TXS_SETTINGS_FILE="$CONFIG_DIR/config"
-declare -gA PROJECT_PATH
-declare -gA PROJECT_SESSION_NAME
-declare -gA PROJECT_ON_CREATE
-declare -gA PROJECT_DEPTH
-declare -ga PROJECT_ORDER=()
-declare -gA DEFAULTS
+declare -A PROJECT_PATH
+declare -A PROJECT_SESSION_NAME
+declare -A PROJECT_ON_CREATE
+declare -A PROJECT_DEPTH
+PROJECT_ORDER=()
+declare -A DEFAULTS
 _trim()
 {
     local str="$1"
