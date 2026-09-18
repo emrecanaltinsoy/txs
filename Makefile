@@ -15,12 +15,13 @@ LIB_FILES = lib/log.sh \
 .PHONY: install uninstall test lint help
 
 install:
-	install -Dm755 bin/txs "$(BINDIR)/txs"
+	mkdir -p "$(BINDIR)" "$(LIBDIR)" "$(SHAREDIR)"
+	install -m755 bin/txs "$(BINDIR)/txs"
 	@for f in $(LIB_FILES); do \
-		install -Dm644 "$$f" "$(LIBDIR)/$$(basename $$f)"; \
+		install -m644 "$$f" "$(LIBDIR)/$$(basename $$f)"; \
 	done
-	install -Dm644 completions/txs.bash "$(SHAREDIR)/txs.bash"
-	install -Dm644 completions/txs.zsh "$(SHAREDIR)/txs.zsh"
+	install -m644 completions/txs.bash "$(SHAREDIR)/txs.bash"
+	install -m644 completions/txs.zsh "$(SHAREDIR)/txs.zsh"
 	@if [ ! -f "$(CONFDIR)/projects.conf" ]; then \
 		install -Dm644 examples/projects.conf.example "$(CONFDIR)/projects.conf"; \
 		echo "Installed example config to $(CONFDIR)/projects.conf"; \
