@@ -31,7 +31,8 @@ _ls_sessions()
     printf '%b\n' "${BOLD}Active sessions:$RESET"
     printf '\n'
     while IFS= read -r session; do
-        local windows="${SESSION_WINDOWS[$session]:-}"
+        local windows
+        windows=$(get_session_windows "$session")
         printf '%b\n' "  $GREEN$session$RESET  ${DIM}[$windows]$RESET"
     done <<< "$sessions"
 }
@@ -48,31 +49,14 @@ _ls_projects()
     printf '\n'
 
     # Build set of explicit project paths for dedup (same logic as ui.sh)
-    declare -A explicit_project_paths
     for project in "${PROJECT_ORDER[@]}"; do
         local depth
         depth=$(get_project_prop "$project" "max_depth")
         [[ $depth -gt 0 ]] 2> /dev/null && continue
-        local epath
-        epath=$(expand_path "$(get_project_prop "$project" "path")")
-        [[ -n $epath ]] && explicit_project_paths[$epath]="$project"
     done
 
-    # Pre-pass: for depth projects, record which project owns each discovered basename (last wins)
-    declare -A depth_name_to_project
-    for project in "${PROJECT_ORDER[@]}"; do
-        local depth
-        depth=$(get_project_prop "$project" "max_depth")
-        [[ $depth -gt 0 ]] 2> /dev/null || continue
-        local root
-        root=$(expand_path "$(get_project_prop "$project" "path")")
-        local dp_path dp_name
-        while IFS=$'\t' read -r dp_path dp_name; do
-            [[ -z $dp_path ]] && continue
-            [[ -n ${explicit_project_paths[$dp_path]:-} ]] && continue
-            depth_name_to_project[$dp_name]="$project"
-        done < <(get_depth_projects "$root" "$depth")
-    done
+    # Pre-pass: for depth projects, record owner of each discovered basename (last wins)
+    # (no map needed; we call find_depth_owner inline below)
 
     for project in "${PROJECT_ORDER[@]}"; do
         local path session_name status depth
@@ -85,8 +69,11 @@ _ls_projects()
             local dp_path dp_name
             while IFS=$'\t' read -r dp_path dp_name; do
                 [[ -z $dp_path ]] && continue
-                [[ -n ${explicit_project_paths[$dp_path]:-} ]] && continue
-                [[ ${depth_name_to_project[$dp_name]:-} != "$project" ]] && continue
+                is_explicit_project_path "$dp_path" && continue
+                local _owner_info _owner
+                _owner_info=$(find_depth_owner "$dp_name") || _owner_info=""
+                _owner=$(cut -f1 <<< "$_owner_info")
+                [[ $_owner != "$project" ]] && continue
                 if printf '%s\n' "$active_sessions" | grep -Fqx "$dp_name"; then
                     status="${GREEN}active$RESET"
                 else
@@ -219,7 +206,7 @@ cmd_attach()
     fi
 
     parse_config || return 1
-    if [[ -z ${PROJECT_PATH[$project]:-} ]]; then
+    if [[ $(_find_project_index "$project") -lt 0 ]]; then
         error "Project '$project' not found in config."
         printf '%s\n' "Available projects:"
         for p in "${PROJECT_ORDER[@]}"; do

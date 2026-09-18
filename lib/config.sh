@@ -199,6 +199,81 @@ get_project_prop()
     esac
 }
 
+# Returns the project name whose session_name matches the given session, or empty
+find_project_for_session()
+{
+    local session="$1"
+    local i
+    for ((i = 0; i < ${#PROJECT_NAMES[@]}; i++)); do
+        local depth="${PROJECT_DEPTHS[$i]:-0}"
+        [[ $depth -gt 0 ]] 2>/dev/null && continue
+        local sname
+        sname=$(get_project_prop "${PROJECT_NAMES[$i]}" "session_name")
+        if [[ $sname == "$session" ]]; then
+            printf '%s' "${PROJECT_NAMES[$i]}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Returns true (0) if the given resolved path belongs to a non-depth project
+is_explicit_project_path()
+{
+    local path="$1"
+    local i
+    for ((i = 0; i < ${#PROJECT_NAMES[@]}; i++)); do
+        local depth="${PROJECT_DEPTHS[$i]:-0}"
+        [[ $depth -gt 0 ]] 2>/dev/null && continue
+        local epath
+        epath=$(expand_path "${PROJECT_PATHS[$i]}")
+        if [[ $epath == "$path" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# For a depth-discovered repo basename, find the owning depth project and its path.
+# Outputs: <project_name>\t<dp_path>  or nothing if not found.
+# Last-writer-wins (mirrors the original declare -A assignment order).
+find_depth_owner()
+{
+    local dp_name="$1"
+    local result_project="" result_path=""
+    local project
+    for project in "${PROJECT_ORDER[@]}"; do
+        local depth root dp_path name
+        depth=$(get_project_prop "$project" "max_depth")
+        [[ $depth -gt 0 ]] 2>/dev/null || continue
+        root=$(expand_path "$(get_project_prop "$project" "path")")
+        while IFS=$'\t' read -r dp_path name; do
+            [[ -z $dp_path ]] && continue
+            is_explicit_project_path "$dp_path" && continue
+            if [[ $name == "$dp_name" ]]; then
+                result_project="$project"
+                result_path="$dp_path"
+            fi
+        done < <(get_depth_projects "$root" "$depth")
+    done
+    if [[ -n $result_project ]]; then
+        printf '%s\t%s' "$result_project" "$result_path"
+        return 0
+    fi
+    return 1
+}
+
+# Returns 0 if needle is in the indexed array passed as remaining args
+_in_array()
+{
+    local needle="$1"; shift
+    local item
+    for item in "$@"; do
+        [[ $item == "$needle" ]] && return 0
+    done
+    return 1
+}
+
 expand_path()
 {
     local path="$1"

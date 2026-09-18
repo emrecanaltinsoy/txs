@@ -89,58 +89,26 @@ cmd_interactive()
     active_sessions=$(get_active_sessions)
     fetch_session_windows
 
-    # Map session names back to project names (non-depth projects)
-    # Also build a set of resolved paths for explicit projects so depth scans can skip them
-    declare -A session_to_project
-    declare -A explicit_project_paths
-    for project in "${PROJECT_ORDER[@]}"; do
-        local depth
-        depth=$(get_project_prop "$project" "max_depth")
-        [[ $depth -gt 0 ]] 2> /dev/null && continue # handled separately
-        local sname
-        sname=$(get_project_prop "$project" "session_name")
-        session_to_project[$sname]="$project"
-        local epath
-        epath=$(expand_path "$(get_project_prop "$project" "path")")
-        [[ -n $epath ]] && explicit_project_paths[$epath]="$project"
-    done
-
-    # Map session names to parent project for depth-discovered repos
-    # session basename → parent project name
-    declare -A session_to_depth_project
-    declare -A session_to_depth_path
-    for project in "${PROJECT_ORDER[@]}"; do
-        local depth
-        depth=$(get_project_prop "$project" "max_depth")
-        [[ $depth -gt 0 ]] 2> /dev/null || continue
-        local root
-        root=$(expand_path "$(get_project_prop "$project" "path")")
-        local dp_path dp_name
-        while IFS=$'\t' read -r dp_path dp_name; do
-            [[ -z $dp_path ]] && continue
-            # Skip if this path is also an explicit (non-depth) project
-            [[ -n ${explicit_project_paths[$dp_path]:-} ]] && continue
-            session_to_depth_project[$dp_name]="$project"
-            session_to_depth_path[$dp_name]="$dp_path"
-        done < <(get_depth_projects "$root" "$depth")
-    done
-
     # Collect entries: marker \t session_name \t project_name \t worktree_path \t display_label
     # Use "-" as placeholder for empty fields (IFS read collapses consecutive delimiters)
     local entries=()
-    declare -A seen_projects
-    declare -A seen_depth_sessions
+    local seen_projects=()
+    local seen_depth_sessions=()
 
     # --- Active sessions ---
     if [[ -n $active_sessions ]]; then
         while IFS= read -r session; do
-            local proj="${session_to_project[$session]:-}"
-            local depth_proj="${session_to_depth_project[$session]:-}"
+            local proj depth_owner_info depth_proj dp_path
+            proj=$(find_project_for_session "$session") || proj=""
+            depth_owner_info=$(find_depth_owner "$session") || depth_owner_info=""
+            depth_proj=""; dp_path=""
+            if [[ -n $depth_owner_info ]]; then
+                IFS=$'\t' read -r depth_proj dp_path <<< "$depth_owner_info"
+            fi
 
             # Depth-discovered active session
             if [[ -z $proj && -n $depth_proj ]]; then
-                seen_depth_sessions[$session]=1
-                local dp_path="${session_to_depth_path[$session]:-}"
+                seen_depth_sessions+=("$session")
                 local _tag_root
                 _tag_root=$(expand_path "$(get_project_prop "$depth_proj" "path")")
                 local tag
@@ -172,7 +140,7 @@ cmd_interactive()
             local display_name="${proj:-$session}"
 
             if [[ -n $proj ]]; then
-                seen_projects[$proj]=1
+                seen_projects+=("$proj")
                 local path
                 path=$(expand_path "$(get_project_prop "$proj" "path")")
 
@@ -215,11 +183,14 @@ cmd_interactive()
             local dp_path dp_name
             while IFS=$'\t' read -r dp_path dp_name; do
                 [[ -z $dp_path ]] && continue
-                [[ -n ${seen_depth_sessions[$dp_name]:-} ]] && continue
+                _in_array "$dp_name" "${seen_depth_sessions[@]}" && continue
                 # Skip if this path is also an explicit (non-depth) project
-                [[ -n ${explicit_project_paths[$dp_path]:-} ]] && continue
-                # Only emit if this project is the designated owner for this path (last wins)
-                [[ ${session_to_depth_project[$dp_name]:-} != "$project" ]] && continue
+                is_explicit_project_path "$dp_path" && continue
+                # Only emit if this project is the designated owner for this name (last wins)
+                local _owner_info _owner
+                _owner_info=$(find_depth_owner "$dp_name") || _owner_info=""
+                _owner=$(cut -f1 <<< "$_owner_info")
+                [[ $_owner != "$project" ]] && continue
                 local tag
                 tag=$(depth_project_tag "$path" "$dp_path")
                 if [[ -d $dp_path ]] && is_bare_repo "$dp_path"; then
@@ -240,7 +211,7 @@ cmd_interactive()
             continue
         fi
 
-        [[ -n ${seen_projects[$project]:-} ]] && continue
+        _in_array "$project" "${seen_projects[@]}" && continue
         [[ -d $path ]] || continue
 
         if [[ -d $path ]] && is_bare_repo "$path"; then
@@ -351,50 +322,20 @@ cmd_switch()
     parse_config || return 1
     fetch_session_windows
 
-    # Map session names back to project names (non-depth)
-    declare -A session_to_project
-    declare -A explicit_project_paths
-    for project in "${PROJECT_ORDER[@]}"; do
-        local depth
-        depth=$(get_project_prop "$project" "max_depth")
-        [[ $depth -gt 0 ]] 2> /dev/null && continue
-        local sname
-        sname=$(get_project_prop "$project" "session_name")
-        session_to_project[$sname]="$project"
-        local epath
-        epath=$(expand_path "$(get_project_prop "$project" "path")")
-        [[ -n $epath ]] && explicit_project_paths[$epath]="$project"
-    done
-
-    # Map session basenames to parent depth project
-    declare -A session_to_depth_project
-    declare -A session_to_depth_path
-    for project in "${PROJECT_ORDER[@]}"; do
-        local depth
-        depth=$(get_project_prop "$project" "max_depth")
-        [[ $depth -gt 0 ]] 2> /dev/null || continue
-        local root
-        root=$(expand_path "$(get_project_prop "$project" "path")")
-        local dp_path dp_name
-        while IFS=$'\t' read -r dp_path dp_name; do
-            [[ -z $dp_path ]] && continue
-            # Skip if this path is also an explicit (non-depth) project
-            [[ -n ${explicit_project_paths[$dp_path]:-} ]] && continue
-            session_to_depth_project[$dp_name]="$project"
-            session_to_depth_path[$dp_name]="$dp_path"
-        done < <(get_depth_projects "$root" "$depth")
-    done
-
     # Collect entries: marker \t session_name \t project_name \t worktree_path \t display_label
     local entries=()
 
     while IFS= read -r session; do
-        local proj="${session_to_project[$session]:-}"
-        local depth_proj="${session_to_depth_project[$session]:-}"
+        local proj depth_owner_info depth_proj dp_path
+        proj=$(find_project_for_session "$session") || proj=""
+        depth_owner_info=$(find_depth_owner "$session") || depth_owner_info=""
+        depth_proj=""; dp_path=""
+        if [[ -n $depth_owner_info ]]; then
+            IFS=$'\t' read -r depth_proj dp_path <<< "$depth_owner_info"
+        fi
 
         # Depth-discovered active session
         if [[ -z $proj && -n $depth_proj ]]; then
-            local dp_path="${session_to_depth_path[$session]:-}"
             local _tag_root
             _tag_root=$(expand_path "$(get_project_prop "$depth_proj" "path")")
             local tag
