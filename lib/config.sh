@@ -4,12 +4,17 @@ TXS_VERSION="0.7.1"
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/txs"
 CONFIG_FILE="$CONFIG_DIR/projects.conf"
 TXS_SETTINGS_FILE="$CONFIG_DIR/config"
-declare -A PROJECT_PATH
-declare -A PROJECT_SESSION_NAME
-declare -A PROJECT_ON_CREATE
-declare -A PROJECT_DEPTH
-PROJECT_ORDER=()
-declare -A DEFAULTS
+
+# Use indexed arrays for bash 3.2 compatibility (macOS)
+PROJECT_NAMES=()
+PROJECT_PATHS=()
+PROJECT_SESSION_NAMES=()
+PROJECT_ON_CREATES=()
+PROJECT_DEPTHS=()
+PROJECT_ORDER=()  # Maintain order of projects for iteration
+DEFAULT_SESSION_NAME=""
+DEFAULT_ON_CREATE=""
+
 _trim()
 {
     local str="$1"
@@ -17,6 +22,21 @@ _trim()
     str="${str%"${str##*[![:space:]]}"}"
     printf '%s' "$str"
 }
+
+_find_project_index()
+{
+    local project="$1"
+    local i
+    for ((i = 0; i < ${#PROJECT_NAMES[@]}; i++)); do
+        if [[ ${PROJECT_NAMES[$i]} == "$project" ]]; then
+            printf '%s' "$i"
+            return 0
+        fi
+    done
+    printf '%s' "-1"
+    return 1
+}
+
 _CONFIG_LOADED=false
 parse_config()
 {
@@ -29,12 +49,15 @@ parse_config()
         return 1
     fi
     # Reset state
-    PROJECT_PATH=()
-    PROJECT_SESSION_NAME=()
-    PROJECT_ON_CREATE=()
-    PROJECT_DEPTH=()
+    PROJECT_NAMES=()
+    PROJECT_PATHS=()
+    PROJECT_SESSION_NAMES=()
+    PROJECT_ON_CREATES=()
+    PROJECT_DEPTHS=()
     PROJECT_ORDER=()
-    DEFAULTS=()
+    DEFAULT_SESSION_NAME=""
+    DEFAULT_ON_CREATE=""
+    
     local current_section=""
     local last_key=""
     local line_num=0
@@ -52,14 +75,18 @@ parse_config()
             fi
             if [[ $current_section == "DEFAULT" ]]; then
                 case "$last_key" in
-                    on_create) DEFAULTS[$last_key]+=$'\n'"$cont_value" ;;
+                    on_create) DEFAULT_ON_CREATE+=$'\n'"$cont_value" ;;
                     *) warn "Continuation line ignored for '$last_key' at line $line_num" ;;
                 esac
             else
-                case "$last_key" in
-                    on_create) PROJECT_ON_CREATE[$current_section]+=$'\n'"$cont_value" ;;
-                    *) warn "Continuation line ignored for '$last_key' at line $line_num" ;;
-                esac
+                local idx
+                idx=$(_find_project_index "$current_section")
+                if [[ $idx -ge 0 ]]; then
+                    case "$last_key" in
+                        on_create) PROJECT_ON_CREATES[$idx]+=$'\n'"$cont_value" ;;
+                        *) warn "Continuation line ignored for '$last_key' at line $line_num" ;;
+                    esac
+                fi
             fi
             continue
         fi
@@ -73,11 +100,15 @@ parse_config()
             current_section="${BASH_REMATCH[1]}"
             last_key=""
             if [[ $current_section != "DEFAULT" ]]; then
-                local new_order=()
-                for entry in "${PROJECT_ORDER[@]}"; do
-                    [[ $entry != "$current_section" ]] && new_order+=("$entry")
-                done
-                PROJECT_ORDER=("${new_order[@]}" "$current_section")
+                # Check if project already exists
+                if [[ $(_find_project_index "$current_section") -lt 0 ]]; then
+                    PROJECT_NAMES+=("$current_section")
+                    PROJECT_ORDER+=("$current_section")
+                    PROJECT_PATHS+=("") 
+                    PROJECT_SESSION_NAMES+=("") 
+                    PROJECT_ON_CREATES+=("")
+                    PROJECT_DEPTHS+=("0")
+                fi
             fi
             continue
         fi
@@ -91,7 +122,8 @@ parse_config()
             last_key="$key"
             if [[ $current_section == "DEFAULT" ]]; then
                 case "$key" in
-                    on_create | session_name) DEFAULTS[$key]="$value" ;;
+                    on_create) DEFAULT_ON_CREATE="$value" ;;
+                    session_name) DEFAULT_SESSION_NAME="$value" ;;
                     path)
                         warn "'path' in [DEFAULT] is not supported (line $line_num)"
                         last_key=""
@@ -106,16 +138,20 @@ parse_config()
                         ;;
                 esac
             elif [[ -n $current_section ]]; then
-                case "$key" in
-                    path) PROJECT_PATH[$current_section]="$value" ;;
-                    session_name) PROJECT_SESSION_NAME[$current_section]="$value" ;;
-                    on_create) PROJECT_ON_CREATE[$current_section]="$value" ;;
-                    max_depth) PROJECT_DEPTH[$current_section]="$value" ;;
-                    *)
-                        last_key=""
-                        warn "Unknown key '$key' at line $line_num"
-                        ;;
-                esac
+                local idx
+                idx=$(_find_project_index "$current_section")
+                if [[ $idx -ge 0 ]]; then
+                    case "$key" in
+                        path) PROJECT_PATHS[$idx]="$value" ;;
+                        session_name) PROJECT_SESSION_NAMES[$idx]="$value" ;;
+                        on_create) PROJECT_ON_CREATES[$idx]="$value" ;;
+                        max_depth) PROJECT_DEPTHS[$idx]="$value" ;;
+                        *)
+                            last_key=""
+                            warn "Unknown key '$key' at line $line_num"
+                            ;;
+                    esac
+                fi
             fi
             continue
         fi
@@ -124,28 +160,51 @@ parse_config()
     done < "$CONFIG_FILE"
     _CONFIG_LOADED=true
 }
+
 get_project_prop()
 {
     local project="$1"
     local prop="$2"
+    local idx
+    idx=$(_find_project_index "$project")
+    
+    if [[ $idx -lt 0 ]]; then
+        return 1
+    fi
+    
     case "$prop" in
         path)
-            printf '%s\n' "${PROJECT_PATH[$project]:-}"
+            printf '%s\n' "${PROJECT_PATHS[$idx]}"
             ;;
         session_name)
-            local name="${PROJECT_SESSION_NAME[$project]:-${DEFAULTS[session_name]:-}}"
-            [[ -z $name ]] && name="$project"
+            local name="${PROJECT_SESSION_NAMES[$idx]}"
+            if [[ -z $name ]]; then
+                name="$DEFAULT_SESSION_NAME"
+            fi
+            if [[ -z $name ]]; then
+                name="$project"
+            fi
             printf '%s\n' "${name//[.:]/_}"
             ;;
-        on_create) printf '%s\n' "${PROJECT_ON_CREATE[$project]:-${DEFAULTS[on_create]:-}}" ;;
-        max_depth) printf '%s\n' "${PROJECT_DEPTH[$project]:-0}" ;;
+        on_create)
+            local on_create="${PROJECT_ON_CREATES[$idx]}"
+            if [[ -z $on_create ]]; then
+                on_create="$DEFAULT_ON_CREATE"
+            fi
+            printf '%s\n' "$on_create"
+            ;;
+        max_depth)
+            printf '%s\n' "${PROJECT_DEPTHS[$idx]:-0}"
+            ;;
     esac
 }
+
 expand_path()
 {
     local path="$1"
     printf '%s\n' "${path/#\~/$HOME}"
 }
+
 get_txs_setting()
 {
     local key="$1"
@@ -167,6 +226,7 @@ get_txs_setting()
         fi
     done < "$TXS_SETTINGS_FILE"
 }
+
 # Resolve settings that are used in hot paths (fzf calls)
 _fzf_height=$(get_txs_setting "fzf_height")
 # shellcheck disable=SC2034  # used by sourcing scripts
