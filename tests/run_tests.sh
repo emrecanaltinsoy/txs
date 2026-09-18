@@ -144,20 +144,20 @@ path = /tmp/another
 CONF
 CONFIG_FILE="$TMPDIR_TEST/projects.conf"
 _CONFIG_LOADED=false
-declare -A PROJECT_PATH=()
-declare -A PROJECT_SESSION_NAME=()
-declare -A PROJECT_ON_CREATE=()
-declare -a PROJECT_ORDER=()
-declare -A DEFAULTS=()
+PROJECT_PATH=()
+PROJECT_SESSION_NAME=()
+PROJECT_ON_CREATE=()
+PROJECT_ORDER=()
+DEFAULTS=()
 parse_config
 assert_eq "parses project count" "2" "${#PROJECT_ORDER[@]}"
 assert_eq "parses first project name" "myproject" "${PROJECT_ORDER[0]}"
 assert_eq "parses second project name" "another" "${PROJECT_ORDER[1]}"
 #shellcheck disable=SC2088
-assert_eq "parses project path" "~/projects/test" "${PROJECT_PATH[myproject]}"
-assert_eq "parses session_name" "test-session" "${PROJECT_SESSION_NAME[myproject]}"
-assert_eq "parses on_create" "nvim ." "${PROJECT_ON_CREATE[myproject]}"
-assert_eq "parses default on_create" "echo default" "${DEFAULTS[on_create]}"
+proj_path=$(get_project_prop "myproject" "path"); assert_eq "parses project path" "~/projects/test" "$proj_path"
+proj_sname=$(get_project_prop "myproject" "session_name"); assert_eq "parses session_name" "test-session" "$proj_sname"
+proj_oncr=$(get_project_prop "myproject" "on_create"); assert_eq "parses on_create" "nvim ." "$proj_oncr"
+assert_eq "parses default on_create" "echo default" "$DEFAULT_ON_CREATE"
 another_on_create=$(get_project_prop "another" "on_create")
 assert_eq "fallback to DEFAULT on_create" "echo default" "$another_on_create"
 another_session=$(get_project_prop "another" "session_name")
@@ -174,11 +174,11 @@ on_create = tmux split-window -v
 CONF
 CONFIG_FILE="$TMPDIR_TEST/projects.conf"
 _CONFIG_LOADED=false
-declare -A PROJECT_PATH=()
-declare -A PROJECT_SESSION_NAME=()
-declare -A PROJECT_ON_CREATE=()
-declare -a PROJECT_ORDER=()
-declare -A DEFAULTS=()
+PROJECT_PATH=()
+PROJECT_SESSION_NAME=()
+PROJECT_ON_CREATE=()
+PROJECT_ORDER=()
+DEFAULTS=()
 parse_config
 multi_on_create=$(get_project_prop "multi" "on_create")
 assert_contains "continuation line appended" "$multi_on_create" "nvim ."
@@ -239,16 +239,16 @@ assert_contains "cmd_add reports success" "$add_output" "Added project"
 assert_eq "config file exists after add" "true" "$_file_exists"
 # Parse and verify
 _CONFIG_LOADED=false
-declare -A PROJECT_PATH=()
-declare -A PROJECT_SESSION_NAME=()
-declare -A PROJECT_ON_CREATE=()
-declare -a PROJECT_ORDER=()
-declare -A DEFAULTS=()
+PROJECT_PATH=()
+PROJECT_SESSION_NAME=()
+PROJECT_ON_CREATE=()
+PROJECT_ORDER=()
+DEFAULTS=()
 parse_config
 assert_eq "added project appears in config" "1" "${#PROJECT_ORDER[@]}"
 assert_eq "added project name is correct" "my-project" "${PROJECT_ORDER[0]}"
 _add_key="my-project"
-assert_eq "added project path is correct" "$TMPDIR_TEST/my-project" "${PROJECT_PATH[$_add_key]}"
+added_path=$(get_project_prop "$_add_key" "path"); assert_eq "added project path is correct" "$TMPDIR_TEST/my-project" "$added_path"
 echo -e "${BOLD}test: cmd_add duplicate detection$RESET"
 dup_output=$(cmd_add "$TMPDIR_TEST/my-project" 2>&1) && ec=0 || ec=$?
 assert_exit_code "duplicate add exits non-zero" "1" "$ec"
@@ -262,11 +262,11 @@ rm_output=$(cmd_remove "my-project" 2>&1) || true
 assert_contains "cmd_remove reports success" "$rm_output" "Removed project"
 # Parse and verify it's gone
 _CONFIG_LOADED=false
-declare -A PROJECT_PATH=()
-declare -A PROJECT_SESSION_NAME=()
-declare -A PROJECT_ON_CREATE=()
-declare -a PROJECT_ORDER=()
-declare -A DEFAULTS=()
+PROJECT_PATH=()
+PROJECT_SESSION_NAME=()
+PROJECT_ON_CREATE=()
+PROJECT_ORDER=()
+DEFAULTS=()
 parse_config
 assert_eq "removed project gone from config" "0" "${#PROJECT_ORDER[@]}"
 echo -e "${BOLD}test: cmd_remove nonexistent project$RESET"
@@ -284,15 +284,15 @@ add_space_output=$(cmd_add "$TMPDIR_TEST/cool project" 2>&1) || true
 assert_contains "add with spaces reports success" "$add_space_output" "Added project"
 # The name should have space replaced with -
 _CONFIG_LOADED=false
-declare -A PROJECT_PATH=()
-declare -A PROJECT_SESSION_NAME=()
-declare -A PROJECT_ON_CREATE=()
-declare -a PROJECT_ORDER=()
-declare -A DEFAULTS=()
+PROJECT_PATH=()
+PROJECT_SESSION_NAME=()
+PROJECT_ON_CREATE=()
+PROJECT_ORDER=()
+DEFAULTS=()
 parse_config
-assert_eq "space in name sanitized" "cool-project" "${PROJECT_ORDER[0]}"
+space_name="${PROJECT_ORDER[0]}"; assert_eq "space in name sanitized" "cool-project" "$space_name"
 _space_key="cool-project"
-assert_eq "path with spaces preserved" "$TMPDIR_TEST/cool project" "${PROJECT_PATH[$_space_key]}"
+path_spaces=$(get_project_prop "$_space_key" "path"); assert_eq "path with spaces preserved" "$TMPDIR_TEST/cool project" "$path_spaces"
 # ---------------------------------------------------------------------------
 # 6.3: clone-bare (integration test with local repo)
 # ---------------------------------------------------------------------------

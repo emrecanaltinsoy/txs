@@ -26,21 +26,39 @@ get_active_sessions()
 {
     tmux list-sessions -F "#{session_name}" 2> /dev/null || true
 }
-declare -gA SESSION_WINDOWS=()
+
+# Use simple variables for bash 3.2 compatibility
+SESSION_WINDOWS_DATA=""
+
 fetch_session_windows()
 {
-    SESSION_WINDOWS=()
+    SESSION_WINDOWS_DATA=""
     local line
     while IFS= read -r line; do
         [[ -z $line ]] && continue
-        local session="${line%%:*}"
-        local window="${line#*:}"
-        if [[ -n ${SESSION_WINDOWS[$session]:-} ]]; then
-            SESSION_WINDOWS[$session]+=", $window"
-        else
-            SESSION_WINDOWS[$session]="$window"
-        fi
+        SESSION_WINDOWS_DATA+="$line"
+        SESSION_WINDOWS_DATA+=$'\n'
     done < <(tmux list-windows -a -F "#{session_name}:#{window_name}" 2> /dev/null || true)
+}
+
+get_session_windows()
+{
+    local session="$1"
+    local result=""
+    local line
+    while IFS= read -r line; do
+        [[ -z $line ]] && continue
+        local s="${line%%:*}"
+        local w="${line#*:}"
+        if [[ $s == "$session" ]]; then
+            if [[ -n $result ]]; then
+                result+=", $w"
+            else
+                result="$w"
+            fi
+        fi
+    done <<< "$SESSION_WINDOWS_DATA"
+    printf '%s' "$result"
 }
 find_window_by_path()
 {

@@ -107,7 +107,7 @@ repo_name_from_url()
 
 get_active_worktrees()
 {
-    declare -A seen=()
+    local seen_paths=""  # Track seen paths
     local pane_path session
     while IFS='|' read -r session pane_path; do
         [[ -z $session || -z $pane_path ]] && continue
@@ -133,8 +133,12 @@ get_active_worktrees()
 
         local wt_path
         while IFS= read -r wt_path; do
-            [[ -z $wt_path || -n ${seen[$wt_path]:-} ]] && continue
-            seen[$wt_path]=1
+            [[ -z $wt_path ]] && continue
+            # Check if already seen
+            if printf '%s' "$seen_paths" | grep -Fxq "$wt_path" 2>/dev/null; then
+                continue
+            fi
+            seen_paths+="$wt_path"$'\n'
             printf '%s\t%s\t%s - %s\n' "$session" "$wt_path" "$repo_name" "$(basename "$wt_path")"
         done < <(_list_worktree_paths "$pane_path")
     done < <(tmux list-panes -a -F "#{session_name}|#{pane_current_path}" 2> /dev/null || true)

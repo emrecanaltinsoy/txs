@@ -48,7 +48,7 @@ _ls_projects()
     printf '\n'
 
     # Build set of explicit project paths for dedup (same logic as ui.sh)
-    local -A explicit_project_paths=()
+    declare -A explicit_project_paths
     for project in "${PROJECT_ORDER[@]}"; do
         local depth
         depth=$(get_project_prop "$project" "max_depth")
@@ -59,7 +59,7 @@ _ls_projects()
     done
 
     # Pre-pass: for depth projects, record which project owns each discovered basename (last wins)
-    local -A depth_name_to_project=()
+    declare -A depth_name_to_project
     for project in "${PROJECT_ORDER[@]}"; do
         local depth
         depth=$(get_project_prop "$project" "max_depth")

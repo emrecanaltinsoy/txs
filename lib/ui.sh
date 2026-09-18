@@ -91,8 +91,8 @@ cmd_interactive()
 
     # Map session names back to project names (non-depth projects)
     # Also build a set of resolved paths for explicit projects so depth scans can skip them
-    local -A session_to_project=()
-    local -A explicit_project_paths=()
+    declare -A session_to_project
+    declare -A explicit_project_paths
     for project in "${PROJECT_ORDER[@]}"; do
         local depth
         depth=$(get_project_prop "$project" "max_depth")
@@ -107,8 +107,8 @@ cmd_interactive()
 
     # Map session names to parent project for depth-discovered repos
     # session basename → parent project name
-    local -A session_to_depth_project=()
-    local -A session_to_depth_path=()
+    declare -A session_to_depth_project
+    declare -A session_to_depth_path
     for project in "${PROJECT_ORDER[@]}"; do
         local depth
         depth=$(get_project_prop "$project" "max_depth")
@@ -128,8 +128,8 @@ cmd_interactive()
     # Collect entries: marker \t session_name \t project_name \t worktree_path \t display_label
     # Use "-" as placeholder for empty fields (IFS read collapses consecutive delimiters)
     local entries=()
-    local -A seen_projects=()
-    local -A seen_depth_sessions=()
+    declare -A seen_projects
+    declare -A seen_depth_sessions
 
     # --- Active sessions ---
     if [[ -n $active_sessions ]]; then
@@ -161,7 +161,7 @@ cmd_interactive()
                         entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "$marker" "$session" "$depth_proj" "$wt_path" "$label")")
                     done < <(get_project_worktrees "$dp_path" | sort -t$'\t' -k2)
                 else
-                    local windows="${SESSION_WINDOWS[$session]:-}"
+                    local windows="$(get_session_windows "$session")"
                     local label
                     label=$(printf '* %-20s [%s]' "[$tag] $session" "$windows")
                     entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "-" "$label")")
@@ -196,7 +196,7 @@ cmd_interactive()
             fi
 
             # Normal project or non-configured session
-            local windows="${SESSION_WINDOWS[$session]:-}"
+            local windows="$(get_session_windows "$session")"
             local label
             label=$(printf '* %-20s [%s]' "$display_name" "$windows")
             entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "${proj:--}" "-" "$label")")
@@ -352,8 +352,8 @@ cmd_switch()
     fetch_session_windows
 
     # Map session names back to project names (non-depth)
-    local -A session_to_project=()
-    local -A explicit_project_paths=()
+    declare -A session_to_project
+    declare -A explicit_project_paths
     for project in "${PROJECT_ORDER[@]}"; do
         local depth
         depth=$(get_project_prop "$project" "max_depth")
@@ -367,8 +367,8 @@ cmd_switch()
     done
 
     # Map session basenames to parent depth project
-    local -A session_to_depth_project=()
-    local -A session_to_depth_path=()
+    declare -A session_to_depth_project
+    declare -A session_to_depth_path
     for project in "${PROJECT_ORDER[@]}"; do
         local depth
         depth=$(get_project_prop "$project" "max_depth")
@@ -412,7 +412,7 @@ cmd_switch()
                     entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "$wt_path" "$label")")
                 done < <(get_project_worktrees "$dp_path" | sort -t$'\t' -k2)
             else
-                local windows="${SESSION_WINDOWS[$session]:-}"
+                local windows="$(get_session_windows "$session")"
                 local label
                 label=$(printf '* %-20s [%s]' "[$tag] $session" "$windows")
                 entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "-" "$label")")
@@ -443,7 +443,7 @@ cmd_switch()
         fi
 
         # Normal project or non-configured session
-        local windows="${SESSION_WINDOWS[$session]:-}"
+        local windows="$(get_session_windows "$session")"
         local label
         label=$(printf '* %-20s [%s]' "$display_name" "$windows")
         entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "${proj:--}" "-" "$label")")
