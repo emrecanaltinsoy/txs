@@ -183,7 +183,7 @@ cmd_interactive()
             local dp_path dp_name
             while IFS=$'\t' read -r dp_path dp_name; do
                 [[ -z $dp_path ]] && continue
-                _in_array "$dp_name" "${seen_depth_sessions[@]}" && continue
+                _in_array "$dp_name" "${seen_depth_sessions[@]+"${seen_depth_sessions[@]}"}" && continue
                 # Skip if this path is also an explicit (non-depth) project
                 is_explicit_project_path "$dp_path" && continue
                 # Only emit if this project is the designated owner for this name (last wins)
@@ -211,7 +211,7 @@ cmd_interactive()
             continue
         fi
 
-        _in_array "$project" "${seen_projects[@]}" && continue
+        _in_array "$project" "${seen_projects[@]+"${seen_projects[@]}"}" && continue
         [[ -d $path ]] || continue
 
         if [[ -d $path ]] && is_bare_repo "$path"; then
