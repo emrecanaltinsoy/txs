@@ -371,6 +371,10 @@ cmd_add()
 {
     local raw_path="${1:-.}"
     local resolved
+    if [[ ! -e $raw_path ]]; then
+        error "Directory does not exist: $raw_path"
+        return 1
+    fi
     resolved=$(realpath "$raw_path" 2> /dev/null) || {
         error "Could not resolve path: $raw_path"
         return 1

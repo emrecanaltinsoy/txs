@@ -236,7 +236,7 @@ assert_contains "txs clone-bare with no arg shows error" "$clone_output" "Missin
 # 6.1: cmd_add / cmd_remove
 # ---------------------------------------------------------------------------
 echo -e "${BOLD}test: cmd_add$RESET"
-TMPDIR_TEST=$(mktemp -d)
+TMPDIR_TEST=$(cd "$(mktemp -d)" && pwd -P)
 CONFIG_FILE="$TMPDIR_TEST/projects.conf"
 _CONFIG_LOADED=false
 # Source git.sh for functions used by commands.sh
@@ -363,7 +363,7 @@ echo ""
 # Depth scan: repo detection without git forks (get_depth_projects)
 # ---------------------------------------------------------------------------
 echo -e "${BOLD}test: depth scan detects repos$RESET"
-_SCAN_TMP=$(mktemp -d)
+_SCAN_TMP=$(cd "$(mktemp -d)" && pwd -P)
 _SR="$_SCAN_TMP/root"
 mkdir -p "$_SR"
 _SRC="$_SCAN_TMP/src"
@@ -392,7 +392,7 @@ rm -rf "$_SCAN_TMP"
 # Depth owner lookup (find_depth_owner / _build_depth_index)
 # ---------------------------------------------------------------------------
 echo -e "${BOLD}test: depth owner lookup$RESET"
-_DEPTH_TMP=$(mktemp -d)
+_DEPTH_TMP=$(cd "$(mktemp -d)" && pwd -P)
 mkdir -p "$_DEPTH_TMP/a/x/dup" "$_DEPTH_TMP/a/x/only-a" "$_DEPTH_TMP/b/y/dup" "$_DEPTH_TMP/b/y/only-b"
 for _r in a/x/dup a/x/only-a b/y/dup b/y/only-b; do git init -q "$_DEPTH_TMP/$_r"; done
 printf '[pa]\npath = %s/a\nmax_depth = 2\n\n[pb]\npath = %s/b\nmax_depth = 2\n\n[explicit-a]\npath = %s/a/x/only-a\n' \
