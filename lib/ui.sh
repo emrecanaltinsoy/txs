@@ -147,7 +147,8 @@ cmd_interactive()
                         entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "$marker" "$session" "$depth_proj" "$wt_path" "[$tag] $session - $wt_name" "$state_label")")
                     done < <(get_project_worktrees "$dp_path" | sort -t$'\t' -k2)
                 else
-                    local windows="$(get_session_windows "$session")"
+                    local windows
+                    windows="$(get_session_windows "$session")"
                     entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "-" "[$tag] $session" "[$windows]")")
                 fi
                 continue
@@ -180,7 +181,8 @@ cmd_interactive()
             fi
 
             # Normal project or non-configured session
-            local windows="$(get_session_windows "$session")"
+            local windows
+            windows="$(get_session_windows "$session")"
             entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "*" "$session" "${proj:--}" "-" "$display_name" "[$windows]")")
         done <<< "$active_sessions"
     fi
@@ -364,7 +366,8 @@ cmd_switch()
                     entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "$wt_path" "[$tag] $session - $wt_name" "[active]")")
                 done < <(get_project_worktrees "$dp_path" | sort -t$'\t' -k2)
             else
-                local windows="$(get_session_windows "$session")"
+                local windows
+                windows="$(get_session_windows "$session")"
                 entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "-" "[$tag] $session" "[$windows]")")
             fi
             continue
@@ -391,7 +394,8 @@ cmd_switch()
         fi
 
         # Normal project or non-configured session
-        local windows="$(get_session_windows "$session")"
+        local windows
+        windows="$(get_session_windows "$session")"
         entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "*" "$session" "${proj:--}" "-" "$display_name" "[$windows]")")
     done <<< "$active_sessions"
 

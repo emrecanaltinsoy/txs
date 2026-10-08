@@ -144,10 +144,14 @@ path = /tmp/another
 CONF
 CONFIG_FILE="$TMPDIR_TEST/projects.conf"
 _CONFIG_LOADED=false
+# shellcheck disable=SC2034  # legacy globals, kept to reset old state
 PROJECT_PATH=()
+# shellcheck disable=SC2034
 PROJECT_SESSION_NAME=()
+# shellcheck disable=SC2034
 PROJECT_ON_CREATE=()
 PROJECT_ORDER=()
+# shellcheck disable=SC2034
 DEFAULTS=()
 parse_config
 assert_eq "parses project count" "2" "${#PROJECT_ORDER[@]}"
@@ -155,6 +159,7 @@ assert_eq "parses first project name" "myproject" "${PROJECT_ORDER[0]}"
 assert_eq "parses second project name" "another" "${PROJECT_ORDER[1]}"
 #shellcheck disable=SC2088
 proj_path=$(get_project_prop "myproject" "path")
+# shellcheck disable=SC2088  # the literal ~ is the expected stored value
 assert_eq "parses project path" "~/projects/test" "$proj_path"
 proj_sname=$(get_project_prop "myproject" "session_name")
 assert_eq "parses session_name" "test-session" "$proj_sname"
@@ -177,10 +182,14 @@ on_create = tmux split-window -v
 CONF
 CONFIG_FILE="$TMPDIR_TEST/projects.conf"
 _CONFIG_LOADED=false
+# shellcheck disable=SC2034  # legacy globals, kept to reset old state
 PROJECT_PATH=()
+# shellcheck disable=SC2034
 PROJECT_SESSION_NAME=()
+# shellcheck disable=SC2034
 PROJECT_ON_CREATE=()
 PROJECT_ORDER=()
+# shellcheck disable=SC2034
 DEFAULTS=()
 parse_config
 multi_on_create=$(get_project_prop "multi" "on_create")
@@ -242,10 +251,14 @@ assert_contains "cmd_add reports success" "$add_output" "Added project"
 assert_eq "config file exists after add" "true" "$_file_exists"
 # Parse and verify
 _CONFIG_LOADED=false
+# shellcheck disable=SC2034  # legacy globals, kept to reset old state
 PROJECT_PATH=()
+# shellcheck disable=SC2034
 PROJECT_SESSION_NAME=()
+# shellcheck disable=SC2034
 PROJECT_ON_CREATE=()
 PROJECT_ORDER=()
+# shellcheck disable=SC2034
 DEFAULTS=()
 parse_config
 assert_eq "added project appears in config" "1" "${#PROJECT_ORDER[@]}"
@@ -266,10 +279,14 @@ rm_output=$(cmd_remove "my-project" 2>&1) || true
 assert_contains "cmd_remove reports success" "$rm_output" "Removed project"
 # Parse and verify it's gone
 _CONFIG_LOADED=false
+# shellcheck disable=SC2034  # legacy globals, kept to reset old state
 PROJECT_PATH=()
+# shellcheck disable=SC2034
 PROJECT_SESSION_NAME=()
+# shellcheck disable=SC2034
 PROJECT_ON_CREATE=()
 PROJECT_ORDER=()
+# shellcheck disable=SC2034
 DEFAULTS=()
 parse_config
 assert_eq "removed project gone from config" "0" "${#PROJECT_ORDER[@]}"
@@ -288,10 +305,14 @@ add_space_output=$(cmd_add "$TMPDIR_TEST/cool project" 2>&1) || true
 assert_contains "add with spaces reports success" "$add_space_output" "Added project"
 # The name should have space replaced with -
 _CONFIG_LOADED=false
+# shellcheck disable=SC2034  # legacy globals, kept to reset old state
 PROJECT_PATH=()
+# shellcheck disable=SC2034
 PROJECT_SESSION_NAME=()
+# shellcheck disable=SC2034
 PROJECT_ON_CREATE=()
 PROJECT_ORDER=()
+# shellcheck disable=SC2034
 DEFAULTS=()
 parse_config
 space_name="${PROJECT_ORDER[0]}"

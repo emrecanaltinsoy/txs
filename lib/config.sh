@@ -83,7 +83,7 @@ parse_config()
                 idx=$(_find_project_index "$current_section")
                 if [[ $idx -ge 0 ]]; then
                     case "$last_key" in
-                        on_create) PROJECT_ON_CREATES[$idx]+=$'\n'"$cont_value" ;;
+                        on_create) PROJECT_ON_CREATES[idx]+=$'\n'"$cont_value" ;;
                         *) warn "Continuation line ignored for '$last_key' at line $line_num" ;;
                     esac
                 fi
@@ -142,10 +142,10 @@ parse_config()
                 idx=$(_find_project_index "$current_section")
                 if [[ $idx -ge 0 ]]; then
                     case "$key" in
-                        path) PROJECT_PATHS[$idx]="$value" ;;
-                        session_name) PROJECT_SESSION_NAMES[$idx]="$value" ;;
-                        on_create) PROJECT_ON_CREATES[$idx]="$value" ;;
-                        max_depth) PROJECT_DEPTHS[$idx]="$value" ;;
+                        path) PROJECT_PATHS[idx]="$value" ;;
+                        session_name) PROJECT_SESSION_NAMES[idx]="$value" ;;
+                        on_create) PROJECT_ON_CREATES[idx]="$value" ;;
+                        max_depth) PROJECT_DEPTHS[idx]="$value" ;;
                         *)
                             last_key=""
                             warn "Unknown key '$key' at line $line_num"
@@ -174,10 +174,10 @@ get_project_prop()
 
     case "$prop" in
         path)
-            printf '%s\n' "${PROJECT_PATHS[$idx]}"
+            printf '%s\n' "${PROJECT_PATHS[idx]}"
             ;;
         session_name)
-            local name="${PROJECT_SESSION_NAMES[$idx]}"
+            local name="${PROJECT_SESSION_NAMES[idx]}"
             if [[ -z $name ]]; then
                 name="$DEFAULT_SESSION_NAME"
             fi
@@ -187,14 +187,14 @@ get_project_prop()
             printf '%s\n' "${name//[.:]/_}"
             ;;
         on_create)
-            local on_create="${PROJECT_ON_CREATES[$idx]}"
+            local on_create="${PROJECT_ON_CREATES[idx]}"
             if [[ -z $on_create ]]; then
                 on_create="$DEFAULT_ON_CREATE"
             fi
             printf '%s\n' "$on_create"
             ;;
         max_depth)
-            printf '%s\n' "${PROJECT_DEPTHS[$idx]:-0}"
+            printf '%s\n' "${PROJECT_DEPTHS[idx]:-0}"
             ;;
     esac
 }
@@ -266,8 +266,8 @@ _build_depth_index()
                 fi
             done
             if [[ $found -ge 0 ]]; then
-                _DEPTH_IDX_PROJECTS[$found]="$project"
-                _DEPTH_IDX_PATHS[$found]="$dp_path"
+                _DEPTH_IDX_PROJECTS[found]="$project"
+                _DEPTH_IDX_PATHS[found]="$dp_path"
             else
                 _DEPTH_IDX_NAMES+=("$name")
                 _DEPTH_IDX_PROJECTS+=("$project")
