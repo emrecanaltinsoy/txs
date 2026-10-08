@@ -159,6 +159,7 @@ Project configuration:
 
 Other:
   txs version                  Show version
+  txs update                   Update txs to the latest version
   txs help                     Show help
 
 Aliases:

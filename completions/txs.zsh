@@ -32,6 +32,7 @@ _txs() {
 		local -a other_cmds=(
 			'help:Show help message'
 			'version:Show version'
+			'update:Update txs to the latest version'
 		)
 		_describe 'session commands' session_cmds
 		_describe 'worktree commands' worktree_cmds

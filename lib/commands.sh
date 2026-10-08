@@ -458,6 +458,24 @@ cmd_config()
     fi
     exec "$editor" "$file"
 }
+cmd_update()
+{
+    local install_url="https://raw.githubusercontent.com/emrecanaltinsoy/txs/main/install.sh"
+    # TXS_ROOT is <prefix>/lib/txs, so reinstall into the same prefix
+    local prefix
+    prefix="$(dirname "$(dirname "$TXS_ROOT")")"
+
+    if ! command -v curl &> /dev/null; then
+        error "'curl' is required to update txs."
+        return 1
+    fi
+
+    info "Updating txs (current: $TXS_VERSION)..."
+    if ! curl -fsSL "$install_url" | bash -s -- --prefix "$prefix"; then
+        error "txs update failed."
+        return 1
+    fi
+}
 cmd_help()
 {
     cat << EOF
@@ -491,6 +509,7 @@ USAGE:
 
   Other:
     txs version                  Show version
+    txs update                   Update txs to the latest version (via install.sh)
     txs help                     Show this help
 
 ALIASES:

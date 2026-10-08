@@ -16,6 +16,7 @@
 #   txs clone-bare <url> [name]  Clone repo as bare + worktree setup
 #   txs config                   Open config in $EDITOR
 #   txs help                     Show help
+#   txs update                   Update txs to the latest version
 #   txs version                  Show version
 #
 # shellcheck source-path=SCRIPTDIR
@@ -75,6 +76,10 @@ main() {
 		;;
 	version | --version | -v)
 		printf '%s\n' "txs ${TXS_VERSION}"
+		return
+		;;
+	update)
+		cmd_update
 		return
 		;;
 	config)

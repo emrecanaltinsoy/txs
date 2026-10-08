@@ -73,6 +73,16 @@ version_output=$("$TXS" version 2>&1) || true
 assert_contains "txs version prints version string" "$version_output" "$TXS_VERSION"
 assert_contains "txs --version prints version string" "$("$TXS" --version 2>&1 || true)" "$TXS_VERSION"
 assert_contains "txs -v prints version string" "$("$TXS" -v 2>&1 || true)" "$TXS_VERSION"
+echo -e "${BOLD}test: update$RESET"
+assert_contains "help mentions update command" "$("$TXS" help 2>&1 || true)" "txs update"
+_upd_dir=$(mktemp -d)
+printf '%s\n' '#!/usr/bin/env bash' 'printf "%s\n" "$*" > "'"$_upd_dir"'/curl-args"' > "$_upd_dir/curl"
+chmod +x "$_upd_dir/curl"
+update_output=$(PATH="$_upd_dir:$PATH" "$TXS" update 2>&1) && ec=0 || ec=$?
+assert_exit_code "update exits zero when curl succeeds" "0" "$ec"
+assert_contains "update requests install.sh from GitHub" "$(cat "$_upd_dir/curl-args" 2> /dev/null)" "https://raw.githubusercontent.com/emrecanaltinsoy/txs/main/install.sh"
+assert_contains "update shows progress message" "$update_output" "Updating txs"
+rm -rf "$_upd_dir"
 echo -e "${BOLD}test: help$RESET"
 help_output=$("$TXS" help 2>&1) || true
 assert_contains "help mentions USAGE" "$help_output" "USAGE"
