@@ -105,9 +105,24 @@ repo_name_from_url()
     printf '%s\n' "${name%.git}"
 }
 
+# Name for the session that a depth-discovered worktree opens in: the bare repo
+# root's name when the worktree sits in a bare layout (<root>/<worktree>),
+# otherwise the worktree's own name.
+depth_session_name()
+{
+    local wt_path="$1"
+    local parent
+    parent=$(dirname "$wt_path")
+    if is_bare_repo "$parent"; then
+        basename "$parent"
+    else
+        basename "$wt_path"
+    fi
+}
+
 get_active_worktrees()
 {
-    local seen_paths=""  # Track seen paths
+    local seen_paths="" # Track seen paths
     local pane_path session
     while IFS='|' read -r session pane_path; do
         [[ -z $session || -z $pane_path ]] && continue
@@ -135,7 +150,7 @@ get_active_worktrees()
         while IFS= read -r wt_path; do
             [[ -z $wt_path ]] && continue
             # Check if already seen
-            if printf '%s' "$seen_paths" | grep -Fxq "$wt_path" 2>/dev/null; then
+            if printf '%s' "$seen_paths" | grep -Fxq "$wt_path" 2> /dev/null; then
                 continue
             fi
             seen_paths+="$wt_path"$'\n'
@@ -156,11 +171,62 @@ get_depth_projects()
     [[ -d $root ]] || return 0
     [[ $max_depth -gt 0 ]] 2> /dev/null || return 0
 
-    _scan_depth_dir "$root" "$max_depth" 0
+    local phys_root
+    phys_root=$(cd "$root" && pwd -P) || return 0
+    _scan_depth_dir "$phys_root" "$max_depth" 0
+}
+
+# Lexically normalize an absolute path (resolves . and ..). No forks.
+_normalize_abs_path()
+{
+    local -a stack=()
+    local part oldifs="$IFS"
+    IFS='/'
+    set -f
+    for part in $1; do
+        case "$part" in
+            '' | .) ;;
+            ..) [[ ${#stack[@]} -gt 0 ]] && unset 'stack[${#stack[@]}-1]' ;;
+            *) stack+=("$part") ;;
+        esac
+    done
+    set +f
+    IFS="$oldifs"
+    printf '/%s' "${stack[@]}"
+}
+
+# Returns 0 if <abs-dir> owns a git repo: the same answer as
+# "git -C <dir> rev-parse --git-dir" resolving to a path inside <dir>,
+# but using only file tests (no git fork per directory).
+#   - <dir>/.git is a directory with a HEAD file -> repo
+#   - <dir>/.git is a file "gitdir: X" with X (relative to <dir>) existing
+#     and inside <dir> (e.g. the .bare layout root) -> repo
+#   - <dir>/.git file pointing elsewhere (worktree sibling) -> not a repo
+#   - <dir> itself is a bare git dir (HEAD, objects/, refs/) -> repo
+_dir_owns_repo()
+{
+    local dir="$1"
+    if [[ -d $dir/.git ]]; then
+        [[ -f $dir/.git/HEAD ]]
+        return
+    fi
+    if [[ -f $dir/.git ]]; then
+        local line gd=""
+        IFS= read -r line < "$dir/.git" || true
+        [[ $line == "gitdir: "* ]] || return 1
+        gd="${line#gitdir: }"
+        [[ $gd == /* ]] || gd="$dir/$gd"
+        gd=$(_normalize_abs_path "$gd")
+        [[ -d $gd ]] || return 1
+        [[ $gd == "$dir"/* ]]
+        return
+    fi
+    [[ -f $dir/HEAD && -d $dir/objects && -d $dir/refs ]]
 }
 
 _scan_depth_dir()
 {
+    # $dir must already be a physical (symlink-free) absolute path.
     local dir="$1"
     local max_depth="$2"
     local current_depth="$3"
@@ -170,19 +236,16 @@ _scan_depth_dir()
     for subdir in "$dir"/*/; do
         [[ -d $subdir ]] || continue
         local name
-        name=$(basename "$subdir")
+        name="${subdir%/}"
+        name="${name##*/}"
         # Skip hidden directories
         [[ $name == .* ]] && continue
-        local abs_subdir
-        abs_subdir=$(cd "$subdir" && pwd -P)
-        # Check if this directory owns a git repo (not inherited from a parent)
-        local git_dir
-        git_dir=$(git -C "$abs_subdir" rev-parse --git-dir 2> /dev/null) || true
-        if [[ -n $git_dir ]]; then
-            [[ $git_dir != /* ]] && git_dir="$abs_subdir/$git_dir"
-            git_dir=$(cd "$git_dir" 2> /dev/null && pwd -P) || true
+        local abs_subdir="$dir/$name"
+        # Symlinked dirs are resolved to their physical path (as pwd -P did)
+        if [[ -L $abs_subdir ]]; then
+            abs_subdir=$(cd "$abs_subdir" && pwd -P) || continue
         fi
-        if [[ -n $git_dir && ($git_dir == "$abs_subdir"/* || $git_dir == "$abs_subdir") ]]; then
+        if _dir_owns_repo "$abs_subdir"; then
             # This dir is a git repo — emit it and do not descend further
             printf '%s\t%s\n' "$abs_subdir" "$name"
         elif [[ $next_depth -lt $max_depth ]]; then

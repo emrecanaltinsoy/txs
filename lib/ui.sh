@@ -76,6 +76,22 @@ pick_worktree()
 # ---------------------------------------------------------------------------
 # Interactive session picker
 # ---------------------------------------------------------------------------
+# Reads picker entries (marker, session, project, path, name, state; tab-separated)
+# and prints them for fzf with the names padded to a common width, so the states
+# line up in one column. fzf shows field 5, which is "<marker> <name>  <state>".
+_picker_format()
+{
+    awk -F'\t' -v OFS='\t' '
+        { rows[NR] = $0; if (length($5) > w) w = length($5) }
+        END {
+            fmt = "%s\t%s\t%s\t%s\t%s %-" w "s  %s\n"
+            for (i = 1; i <= NR; i++) {
+                split(rows[i], f, "\t")
+                printf fmt, f[1], f[2], f[3], f[4], f[1], f[5], f[6]
+            }
+        }'
+}
+
 cmd_interactive()
 {
     if ! command -v fzf &> /dev/null; then
@@ -84,12 +100,13 @@ cmd_interactive()
         return 1
     fi
     parse_config || return 1
+    _build_depth_index
 
     local active_sessions
     active_sessions=$(get_active_sessions)
     fetch_session_windows
 
-    # Collect entries: marker \t session_name \t project_name \t worktree_path \t display_label
+    # Collect entries: marker \t session_name \t project_name \t worktree_path \t name \t state
     # Use "-" as placeholder for empty fields (IFS read collapses consecutive delimiters)
     local entries=()
     local seen_projects=()
@@ -101,7 +118,8 @@ cmd_interactive()
             local proj depth_owner_info depth_proj dp_path
             proj=$(find_project_for_session "$session") || proj=""
             depth_owner_info=$(find_depth_owner "$session") || depth_owner_info=""
-            depth_proj=""; dp_path=""
+            depth_proj=""
+            dp_path=""
             if [[ -n $depth_owner_info ]]; then
                 IFS=$'\t' read -r depth_proj dp_path <<< "$depth_owner_info"
             fi
@@ -124,15 +142,13 @@ cmd_interactive()
                         if [[ -n $matched_win ]]; then
                             marker="*"
                         fi
-                        local label
-                        label=$(printf '%s %-20s %s' "$marker" "[$tag] $session - $wt_name" "[active]")
-                        entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "$marker" "$session" "$depth_proj" "$wt_path" "$label")")
+                        local state_label="[active]"
+                        [[ $marker == " " ]] && state_label="[no window]"
+                        entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "$marker" "$session" "$depth_proj" "$wt_path" "[$tag] $session - $wt_name" "$state_label")")
                     done < <(get_project_worktrees "$dp_path" | sort -t$'\t' -k2)
                 else
                     local windows="$(get_session_windows "$session")"
-                    local label
-                    label=$(printf '* %-20s [%s]' "[$tag] $session" "$windows")
-                    entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "-" "$label")")
+                    entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "-" "[$tag] $session" "[$windows]")")
                 fi
                 continue
             fi
@@ -155,9 +171,9 @@ cmd_interactive()
                         if [[ -n $matched_win ]]; then
                             marker="*"
                         fi
-                        local label
-                        label=$(printf '%s %-20s %s' "$marker" "$display_name - $wt_name" "[active]")
-                        entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "$marker" "$session" "$proj" "$wt_path" "$label")")
+                        local state_label="[active]"
+                        [[ $marker == " " ]] && state_label="[no window]"
+                        entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "$marker" "$session" "$proj" "$wt_path" "$display_name - $wt_name" "$state_label")")
                     done < <(get_project_worktrees "$path" | sort -t$'\t' -k2)
                     continue
                 fi
@@ -165,9 +181,7 @@ cmd_interactive()
 
             # Normal project or non-configured session
             local windows="$(get_session_windows "$session")"
-            local label
-            label=$(printf '* %-20s [%s]' "$display_name" "$windows")
-            entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "${proj:--}" "-" "$label")")
+            entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "*" "$session" "${proj:--}" "-" "$display_name" "[$windows]")")
         done <<< "$active_sessions"
     fi
 
@@ -198,14 +212,10 @@ cmd_interactive()
                     local wt_path wt_name
                     while IFS=$'\t' read -r wt_path wt_name; do
                         [[ -z $wt_path ]] && continue
-                        local label
-                        label=$(printf '+ [%s] %s - %s' "$tag" "$dp_name" "$wt_name")
-                        entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "+" "-" "$project" "$wt_path" "$label")")
+                        entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "+" "-" "$project" "$wt_path" "[$tag] $dp_name - $wt_name" "")")
                     done < <(get_project_worktrees "$dp_path" | sort -t$'\t' -k2)
                 else
-                    local label
-                    label=$(printf '+ [%s] %s' "$tag" "$dp_name")
-                    entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "+" "-" "$project" "$dp_path" "$label")")
+                    entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "+" "-" "$project" "$dp_path" "[$tag] $dp_name" "")")
                 fi
             done < <(get_depth_projects "$path" "$depth")
             continue
@@ -219,14 +229,10 @@ cmd_interactive()
             local wt_path wt_name
             while IFS=$'\t' read -r wt_path wt_name; do
                 [[ -z $wt_path ]] && continue
-                local label
-                label=$(printf '+ %s' "$project - $wt_name")
-                entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "+" "-" "$project" "$wt_path" "$label")")
+                entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "+" "-" "$project" "$wt_path" "$project - $wt_name" "")")
             done < <(get_project_worktrees "$path" | sort -t$'\t' -k2)
         else
-            local label
-            label=$(printf '+ %s' "$project")
-            entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "+" "-" "$project" "-" "$label")")
+            entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "+" "-" "$project" "-" "$project" "")")
         fi
     done
 
@@ -237,7 +243,7 @@ cmd_interactive()
 
     local header="* = active  + = project | ESC to cancel"
     local selected
-    selected=$(printf '%s\n' "${entries[@]}" | fzf \
+    selected=$(printf '%s\n' "${entries[@]}" | _picker_format | fzf \
         --delimiter=$'\t' \
         --with-nth=5 \
         --header="$header" \
@@ -283,15 +289,20 @@ cmd_interactive()
                     cmd_attach "$sel_project" "$basename_sel"
                 else
                     # Depth-discovered repo (normal or bare worktree)
-                    # For bare worktrees, sel_wt_path is the worktree itself;
-                    # the bare root is the dir whose worktrees include sel_wt_path.
-                    # We can just create the session at sel_wt_path directly.
                     local on_create
                     on_create=$(get_project_prop "$sel_project" "on_create")
                     local session_name
-                    session_name=$(sanitize_session_name "$(basename "$sel_wt_path")")
-                    _ensure_session "$session_name" "$sel_wt_path" "$on_create" > /dev/null
-                    tmux_attach_or_switch "$session_name"
+                    session_name=$(sanitize_session_name "$(depth_session_name "$sel_wt_path")")
+                    if is_bare_repo "$(dirname "$sel_wt_path")"; then
+                        # Bare layout: session is the repo root, the worktree is a window in it
+                        local bare_root created=false
+                        bare_root=$(dirname "$sel_wt_path")
+                        [[ $(_ensure_session "$session_name" "$bare_root" "$on_create") == created ]] && created=true
+                        _attach_bare_repo "$sel_project" "$bare_root" "$session_name" "$on_create" "$(basename "$sel_wt_path")" "$created"
+                    else
+                        _ensure_session "$session_name" "$sel_wt_path" "$on_create" > /dev/null
+                        tmux_attach_or_switch "$session_name"
+                    fi
                 fi
             else
                 cmd_attach "$sel_project"
@@ -320,16 +331,18 @@ cmd_switch()
     fi
 
     parse_config || return 1
+    _build_depth_index
     fetch_session_windows
 
-    # Collect entries: marker \t session_name \t project_name \t worktree_path \t display_label
+    # Collect entries: marker \t session_name \t project_name \t worktree_path \t name \t state
     local entries=()
 
     while IFS= read -r session; do
         local proj depth_owner_info depth_proj dp_path
         proj=$(find_project_for_session "$session") || proj=""
         depth_owner_info=$(find_depth_owner "$session") || depth_owner_info=""
-        depth_proj=""; dp_path=""
+        depth_proj=""
+        dp_path=""
         if [[ -n $depth_owner_info ]]; then
             IFS=$'\t' read -r depth_proj dp_path <<< "$depth_owner_info"
         fi
@@ -348,15 +361,11 @@ cmd_switch()
                     local matched_win
                     matched_win=$(find_window_by_path "$session" "$wt_path") || true
                     [[ -z $matched_win ]] && continue
-                    local label
-                    label=$(printf '* %-20s %s' "[$tag] $session - $wt_name" "[active]")
-                    entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "$wt_path" "$label")")
+                    entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "$wt_path" "[$tag] $session - $wt_name" "[active]")")
                 done < <(get_project_worktrees "$dp_path" | sort -t$'\t' -k2)
             else
                 local windows="$(get_session_windows "$session")"
-                local label
-                label=$(printf '* %-20s [%s]' "[$tag] $session" "$windows")
-                entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "-" "$label")")
+                entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "*" "$session" "$depth_proj" "-" "[$tag] $session" "[$windows]")")
             fi
             continue
         fi
@@ -375,9 +384,7 @@ cmd_switch()
                     local matched_win
                     matched_win=$(find_window_by_path "$session" "$wt_path") || true
                     [[ -z $matched_win ]] && continue # skip worktrees with no open window
-                    local label
-                    label=$(printf '* %-20s %s' "$display_name - $wt_name" "[active]")
-                    entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "$proj" "$wt_path" "$label")")
+                    entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "*" "$session" "$proj" "$wt_path" "$display_name - $wt_name" "[active]")")
                 done < <(get_project_worktrees "$path" | sort -t$'\t' -k2)
                 continue
             fi
@@ -385,9 +392,7 @@ cmd_switch()
 
         # Normal project or non-configured session
         local windows="$(get_session_windows "$session")"
-        local label
-        label=$(printf '* %-20s [%s]' "$display_name" "$windows")
-        entries+=("$(printf '%s\t%s\t%s\t%s\t%s' "*" "$session" "${proj:--}" "-" "$label")")
+        entries+=("$(printf '%s\t%s\t%s\t%s\t%s\t%s' "*" "$session" "${proj:--}" "-" "$display_name" "[$windows]")")
     done <<< "$active_sessions"
 
     if [[ ${#entries[@]} -eq 0 ]]; then
@@ -396,7 +401,7 @@ cmd_switch()
     fi
 
     local selected
-    selected=$(printf '%s\n' "${entries[@]}" | fzf \
+    selected=$(printf '%s\n' "${entries[@]}" | _picker_format | fzf \
         --delimiter=$'\t' \
         --with-nth=5 \
         --header="Open sessions | ESC to cancel" \

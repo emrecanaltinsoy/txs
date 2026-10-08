@@ -11,7 +11,7 @@ PROJECT_PATHS=()
 PROJECT_SESSION_NAMES=()
 PROJECT_ON_CREATES=()
 PROJECT_DEPTHS=()
-PROJECT_ORDER=()  # Maintain order of projects for iteration
+PROJECT_ORDER=() # Maintain order of projects for iteration
 DEFAULT_SESSION_NAME=""
 DEFAULT_ON_CREATE=""
 
@@ -57,7 +57,7 @@ parse_config()
     PROJECT_ORDER=()
     DEFAULT_SESSION_NAME=""
     DEFAULT_ON_CREATE=""
-    
+
     local current_section=""
     local last_key=""
     local line_num=0
@@ -104,8 +104,8 @@ parse_config()
                 if [[ $(_find_project_index "$current_section") -lt 0 ]]; then
                     PROJECT_NAMES+=("$current_section")
                     PROJECT_ORDER+=("$current_section")
-                    PROJECT_PATHS+=("") 
-                    PROJECT_SESSION_NAMES+=("") 
+                    PROJECT_PATHS+=("")
+                    PROJECT_SESSION_NAMES+=("")
                     PROJECT_ON_CREATES+=("")
                     PROJECT_DEPTHS+=("0")
                 fi
@@ -167,11 +167,11 @@ get_project_prop()
     local prop="$2"
     local idx
     idx=$(_find_project_index "$project")
-    
+
     if [[ $idx -lt 0 ]]; then
         return 1
     fi
-    
+
     case "$prop" in
         path)
             printf '%s\n' "${PROJECT_PATHS[$idx]}"
@@ -206,7 +206,7 @@ find_project_for_session()
     local i
     for ((i = 0; i < ${#PROJECT_NAMES[@]}; i++)); do
         local depth="${PROJECT_DEPTHS[$i]:-0}"
-        [[ $depth -gt 0 ]] 2>/dev/null && continue
+        [[ $depth -gt 0 ]] 2> /dev/null && continue
         local sname
         sname=$(get_project_prop "${PROJECT_NAMES[$i]}" "session_name")
         if [[ $sname == "$session" ]]; then
@@ -224,7 +224,7 @@ is_explicit_project_path()
     local i
     for ((i = 0; i < ${#PROJECT_NAMES[@]}; i++)); do
         local depth="${PROJECT_DEPTHS[$i]:-0}"
-        [[ $depth -gt 0 ]] 2>/dev/null && continue
+        [[ $depth -gt 0 ]] 2> /dev/null && continue
         local epath
         epath=$(expand_path "${PROJECT_PATHS[$i]}")
         if [[ $epath == "$path" ]]; then
@@ -234,39 +234,71 @@ is_explicit_project_path()
     return 1
 }
 
-# For a depth-discovered repo basename, find the owning depth project and its path.
-# Outputs: <project_name>\t<dp_path>  or nothing if not found.
-# Last-writer-wins (mirrors the original declare -A assignment order).
-find_depth_owner()
+# Owner index for depth-discovered repos, built once per process.
+# Parallel arrays (bash 3.2 compatible): name -> owning project, repo path.
+_DEPTH_INDEX_BUILT=false
+_DEPTH_IDX_NAMES=()
+_DEPTH_IDX_PROJECTS=()
+_DEPTH_IDX_PATHS=()
+
+_build_depth_index()
 {
-    local dp_name="$1"
-    local result_project="" result_path=""
+    [[ $_DEPTH_INDEX_BUILT == true ]] && return 0
+    _DEPTH_INDEX_BUILT=true
+    _DEPTH_IDX_NAMES=()
+    _DEPTH_IDX_PROJECTS=()
+    _DEPTH_IDX_PATHS=()
     local project
     for project in "${PROJECT_ORDER[@]}"; do
         local depth root dp_path name
         depth=$(get_project_prop "$project" "max_depth")
-        [[ $depth -gt 0 ]] 2>/dev/null || continue
+        [[ $depth -gt 0 ]] 2> /dev/null || continue
         root=$(expand_path "$(get_project_prop "$project" "path")")
         while IFS=$'\t' read -r dp_path name; do
             [[ -z $dp_path ]] && continue
             is_explicit_project_path "$dp_path" && continue
-            if [[ $name == "$dp_name" ]]; then
-                result_project="$project"
-                result_path="$dp_path"
+            # Last-writer-wins: overwrite the existing entry for this name
+            local i found=-1
+            for ((i = 0; i < ${#_DEPTH_IDX_NAMES[@]}; i++)); do
+                if [[ ${_DEPTH_IDX_NAMES[$i]} == "$name" ]]; then
+                    found=$i
+                    break
+                fi
+            done
+            if [[ $found -ge 0 ]]; then
+                _DEPTH_IDX_PROJECTS[$found]="$project"
+                _DEPTH_IDX_PATHS[$found]="$dp_path"
+            else
+                _DEPTH_IDX_NAMES+=("$name")
+                _DEPTH_IDX_PROJECTS+=("$project")
+                _DEPTH_IDX_PATHS+=("$dp_path")
             fi
         done < <(get_depth_projects "$root" "$depth")
     done
-    if [[ -n $result_project ]]; then
-        printf '%s\t%s' "$result_project" "$result_path"
-        return 0
-    fi
+}
+
+# For a depth-discovered repo basename, find the owning depth project and its path.
+# Outputs: <project_name>\t<dp_path>  or nothing if not found.
+# Last-writer-wins (mirrors the original assignment order).
+find_depth_owner()
+{
+    local dp_name="$1"
+    _build_depth_index
+    local i
+    for ((i = 0; i < ${#_DEPTH_IDX_NAMES[@]}; i++)); do
+        if [[ ${_DEPTH_IDX_NAMES[$i]} == "$dp_name" ]]; then
+            printf '%s\t%s' "${_DEPTH_IDX_PROJECTS[$i]}" "${_DEPTH_IDX_PATHS[$i]}"
+            return 0
+        fi
+    done
     return 1
 }
 
 # Returns 0 if needle is in the indexed array passed as remaining args
 _in_array()
 {
-    local needle="$1"; shift
+    local needle="$1"
+    shift
     local item
     for item in "$@"; do
         [[ $item == "$needle" ]] && return 0

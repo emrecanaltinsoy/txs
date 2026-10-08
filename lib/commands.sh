@@ -39,6 +39,9 @@ _ls_sessions()
 _ls_projects()
 {
     parse_config || return 1
+    # Build the depth owner index here, in the parent shell, so the
+    # find_depth_owner calls below (inside $(...)) reuse it.
+    _build_depth_index
     if [[ ${#PROJECT_ORDER[@]} -eq 0 ]]; then
         printf '%b\n' "${DIM}No projects configured in $CONFIG_FILE$RESET"
         return 0

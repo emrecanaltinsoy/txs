@@ -154,9 +154,12 @@ assert_eq "parses project count" "2" "${#PROJECT_ORDER[@]}"
 assert_eq "parses first project name" "myproject" "${PROJECT_ORDER[0]}"
 assert_eq "parses second project name" "another" "${PROJECT_ORDER[1]}"
 #shellcheck disable=SC2088
-proj_path=$(get_project_prop "myproject" "path"); assert_eq "parses project path" "~/projects/test" "$proj_path"
-proj_sname=$(get_project_prop "myproject" "session_name"); assert_eq "parses session_name" "test-session" "$proj_sname"
-proj_oncr=$(get_project_prop "myproject" "on_create"); assert_eq "parses on_create" "nvim ." "$proj_oncr"
+proj_path=$(get_project_prop "myproject" "path")
+assert_eq "parses project path" "~/projects/test" "$proj_path"
+proj_sname=$(get_project_prop "myproject" "session_name")
+assert_eq "parses session_name" "test-session" "$proj_sname"
+proj_oncr=$(get_project_prop "myproject" "on_create")
+assert_eq "parses on_create" "nvim ." "$proj_oncr"
 assert_eq "parses default on_create" "echo default" "$DEFAULT_ON_CREATE"
 another_on_create=$(get_project_prop "another" "on_create")
 assert_eq "fallback to DEFAULT on_create" "echo default" "$another_on_create"
@@ -248,7 +251,8 @@ parse_config
 assert_eq "added project appears in config" "1" "${#PROJECT_ORDER[@]}"
 assert_eq "added project name is correct" "my-project" "${PROJECT_ORDER[0]}"
 _add_key="my-project"
-added_path=$(get_project_prop "$_add_key" "path"); assert_eq "added project path is correct" "$TMPDIR_TEST/my-project" "$added_path"
+added_path=$(get_project_prop "$_add_key" "path")
+assert_eq "added project path is correct" "$TMPDIR_TEST/my-project" "$added_path"
 echo -e "${BOLD}test: cmd_add duplicate detection$RESET"
 dup_output=$(cmd_add "$TMPDIR_TEST/my-project" 2>&1) && ec=0 || ec=$?
 assert_exit_code "duplicate add exits non-zero" "1" "$ec"
@@ -290,9 +294,11 @@ PROJECT_ON_CREATE=()
 PROJECT_ORDER=()
 DEFAULTS=()
 parse_config
-space_name="${PROJECT_ORDER[0]}"; assert_eq "space in name sanitized" "cool-project" "$space_name"
+space_name="${PROJECT_ORDER[0]}"
+assert_eq "space in name sanitized" "cool-project" "$space_name"
 _space_key="cool-project"
-path_spaces=$(get_project_prop "$_space_key" "path"); assert_eq "path with spaces preserved" "$TMPDIR_TEST/cool project" "$path_spaces"
+path_spaces=$(get_project_prop "$_space_key" "path")
+assert_eq "path with spaces preserved" "$TMPDIR_TEST/cool project" "$path_spaces"
 # ---------------------------------------------------------------------------
 # 6.3: clone-bare (integration test with local repo)
 # ---------------------------------------------------------------------------
@@ -332,6 +338,72 @@ assert_eq "default worktree created" "true" "$_wt"
 [[ -f $CONFIG_FILE ]] && _added="true" || _added="false"
 assert_eq "clone-bare auto-added to config" "true" "$_added"
 echo ""
+# ---------------------------------------------------------------------------
+# Depth scan: repo detection without git forks (get_depth_projects)
+# ---------------------------------------------------------------------------
+echo -e "${BOLD}test: depth scan detects repos$RESET"
+_SCAN_TMP=$(mktemp -d)
+_SR="$_SCAN_TMP/root"
+mkdir -p "$_SR"
+_SRC="$_SCAN_TMP/src"
+git init -q "$_SRC"
+git -C "$_SRC" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+git init -q "$_SR/plain"
+git init -q "$_SR/sib"
+git -C "$_SR/sib" -c user.email=t@t -c user.name=t commit -q --allow-empty -m init
+git -C "$_SR/sib" worktree add -q ../sib.feat -b feat
+git clone -q --bare "$_SRC" "$_SR/bareroot/.bare"
+echo 'gitdir: ./.bare' > "$_SR/bareroot/.git"
+git init -q --bare "$_SR/bare.git"
+mkdir -p "$_SR/notrepo/deep" && git init -q "$_SR/notrepo/deep"
+mkdir -p "$_SR/.hidden" && git init -q "$_SR/.hidden/x"
+mkdir -p "$_SR/outside-ref" && echo 'gitdir: ../plain/.git' > "$_SR/outside-ref/.git"
+_scan_out=$(get_depth_projects "$_SR" 2 | cut -f2 | sort | tr '\n' ' ')
+assert_eq "depth scan finds owned repos only" "bare.git bareroot deep plain sib " "$_scan_out"
+_norm=$(_normalize_abs_path "/a/b/../c/./d")
+assert_eq "normalize resolves .. and ." "/a/c/d" "$_norm"
+git -C "$_SR/bareroot" worktree add -q -b wt-main "$_SR/bareroot/main"
+assert_eq "bare worktree session = repo root name" "bareroot" "$(depth_session_name "$_SR/bareroot/main")"
+assert_eq "normal repo session = repo name" "plain" "$(depth_session_name "$_SR/plain")"
+rm -rf "$_SCAN_TMP"
+
+# ---------------------------------------------------------------------------
+# Depth owner lookup (find_depth_owner / _build_depth_index)
+# ---------------------------------------------------------------------------
+echo -e "${BOLD}test: depth owner lookup$RESET"
+_DEPTH_TMP=$(mktemp -d)
+mkdir -p "$_DEPTH_TMP/a/x/dup" "$_DEPTH_TMP/a/x/only-a" "$_DEPTH_TMP/b/y/dup" "$_DEPTH_TMP/b/y/only-b"
+for _r in a/x/dup a/x/only-a b/y/dup b/y/only-b; do git init -q "$_DEPTH_TMP/$_r"; done
+printf '[pa]\npath = %s/a\nmax_depth = 2\n\n[pb]\npath = %s/b\nmax_depth = 2\n\n[explicit-a]\npath = %s/a/x/only-a\n' \
+    "$_DEPTH_TMP" "$_DEPTH_TMP" "$_DEPTH_TMP" > "$_DEPTH_TMP/projects.conf"
+CONFIG_FILE="$_DEPTH_TMP/projects.conf"
+_CONFIG_LOADED=false
+_DEPTH_INDEX_BUILT=false
+parse_config
+# build in the parent shell first (as the real callers do); $(...) subshells inherit it
+_build_depth_index
+: last project in config order wins
+assert_eq "dup owned by last project" "pb"$'\t'"$_DEPTH_TMP/b/y/dup" "$(find_depth_owner dup)"
+assert_eq "unique basename found" "pb"$'\t'"$_DEPTH_TMP/b/y/only-b" "$(find_depth_owner only-b)"
+# explicit (non-depth) project path is excluded from depth owners
+[[ $(
+    find_depth_owner only-a
+    echo $?
+) == *1 ]] && _excl="true" || _excl="false"
+assert_eq "explicit project path excluded" "true" "$_excl"
+[[ $(
+    find_depth_owner missing
+    echo $?
+) == *1 ]] && _miss="true" || _miss="false"
+assert_eq "unknown basename returns failure" "true" "$_miss"
+# index is built once: a repo added after the first build is not seen in this process
+mkdir -p "$_DEPTH_TMP/b/y/late" && git init -q "$_DEPTH_TMP/b/y/late"
+[[ $(
+    find_depth_owner late
+    echo $?
+) == *1 ]] && _late="true" || _late="false"
+assert_eq "index reused within process" "true" "$_late"
+rm -rf "$_DEPTH_TMP"
 echo -e "${BOLD}Results: $PASS/$TOTAL passed, $FAIL failed$RESET"
 if [[ $FAIL -gt 0 ]]; then
     exit 1
